@@ -17,6 +17,7 @@ import {
   type ScheduleBooking,
 } from '@/components/GlobalScheduleGrid'
 import SmartBookingModal from '@/components/SmartBookingModal'
+import TeacherBookingModal from '@/components/TeacherBookingModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ interface DayScheduleCalendarProps {
   bookings: ScheduleBooking[]  // { id, court_id, start_time, end_time } — stored in UTC (+00:00)
   date:     string             // YYYY-MM-DD — currently selected day
   today:    string             // YYYY-MM-DD — server-computed today
+  userRole: 'admin' | 'member' | 'teacher'
 }
 
 interface ModalState {
@@ -122,9 +124,11 @@ export default function DayScheduleCalendar({
   bookings,
   date,
   today,
+  userRole,
 }: DayScheduleCalendarProps) {
   const now   = new Date()
-  const [modal, setModal] = useState<ModalState | null>(null)
+  const [modal, setModal]               = useState<ModalState | null>(null)
+  const [teacherModal, setTeacherModal] = useState<ModalState | null>(null)
 
   const prevDay = offsetDate(date, -1)
   const nextDay = offsetDate(date, +1)
@@ -296,28 +300,58 @@ export default function DayScheduleCalendar({
 
                     const booking = getBookingForHour(bookings, court, date, slot)
 
-                    // ── Booked — start of booking ───────────────────────────
-                    if (booking && isBookingStart(booking, slot)) {
-                      return (
-                        <td
-                          key={court.id}
-                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
-                        >
-                          <div className="h-[64px] rounded-xl border border-rg-clay/60 bg-rg-clay/25 border-l-[4px] border-l-rg-clay flex flex-col justify-center px-3 gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-rg-clay flex-shrink-0" />
-                              <span className="text-xs font-bold text-rg-clay leading-none">Occupato</span>
-                            </div>
-                            <span className="text-[11px] text-rg-dark/65 pl-4 leading-none font-medium">
-                              {formatBookingTime(booking)}
-                            </span>
-                          </div>
-                        </td>
-                      )
-                    }
-
-                    // ── Booked — continuation ───────────────────────────────
+                    // ── Booked ─────────────────────────────────────────────
                     if (booking) {
+                      // Teacher booking: usa colore dinamico del maestro
+                      if (booking.booking_type === 'teacher') {
+                        const color = booking.teacher_color ?? '#6366f1'
+                        return (
+                          <td
+                            key={court.id}
+                            className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                          >
+                            <div
+                              style={{
+                                borderLeftColor: color,
+                                borderColor: `${color}60`,
+                                backgroundColor: `${color}22`,
+                              }}
+                              className="h-[64px] rounded-xl border border-l-[4px] flex flex-col justify-center px-3 gap-1"
+                            >
+                              <span style={{ color }} className="text-xs font-bold leading-none truncate">
+                                🎾 {booking.teacher_name ?? 'Maestro'} / {booking.student_name ?? '—'}
+                              </span>
+                              {isBookingStart(booking, slot) && (
+                                <span className="text-[11px] text-rg-dark/65 leading-none font-medium">
+                                  {formatBookingTime(booking)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        )
+                      }
+
+                      // Member booking — start
+                      if (isBookingStart(booking, slot)) {
+                        return (
+                          <td
+                            key={court.id}
+                            className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                          >
+                            <div className="h-[64px] rounded-xl border border-rg-clay/60 bg-rg-clay/25 border-l-[4px] border-l-rg-clay flex flex-col justify-center px-3 gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-rg-clay flex-shrink-0" />
+                                <span className="text-xs font-bold text-rg-clay leading-none">Occupato</span>
+                              </div>
+                              <span className="text-[11px] text-rg-dark/65 pl-4 leading-none font-medium">
+                                {formatBookingTime(booking)}
+                              </span>
+                            </div>
+                          </td>
+                        )
+                      }
+
+                      // Member booking — continuation
                       return (
                         <td
                           key={court.id}
@@ -341,13 +375,13 @@ export default function DayScheduleCalendar({
                       >
                         <button
                           id={isFirstAvail && firstAvailableSlotId ? firstAvailableSlotId : undefined}
-                          onClick={() =>
-                            setModal({
-                              courtId:   court.id,
-                              courtName: court.name,
-                              startTime: slot,
-                            })
-                          }
+                          onClick={() => {
+                            if (userRole === 'teacher') {
+                              setTeacherModal({ courtId: court.id, courtName: court.name, startTime: slot })
+                            } else {
+                              setModal({ courtId: court.id, courtName: court.name, startTime: slot })
+                            }
+                          }}
                           className={[
                             'w-full h-[64px] rounded-xl border-2 flex flex-col items-center justify-center gap-1',
                             'transition-all duration-200 group',
@@ -391,6 +425,17 @@ export default function DayScheduleCalendar({
           preSelectedDate={date}
           preSelectedStartTime={modal.startTime}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* TeacherBookingModal */}
+      {teacherModal && (
+        <TeacherBookingModal
+          courtId={teacherModal.courtId}
+          courtName={teacherModal.courtName}
+          preSelectedDate={date}
+          preSelectedStartTime={teacherModal.startTime}
+          onClose={() => setTeacherModal(null)}
         />
       )}
     </div>

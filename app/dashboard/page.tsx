@@ -4,6 +4,8 @@ import type { Court, User } from '@/types/database'
 import CourtCard from '@/components/CourtCard'
 import DayScheduleCalendar from '@/components/DayScheduleCalendar'
 import { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
+import QuickReleaseBanner from '@/components/ui/QuickReleaseBanner'
+import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
 
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -40,7 +42,7 @@ export default async function DashboardPage({
       .returns<Court[]>(),
     supabase
       .from('bookings')
-      .select('id, court_id, start_time, end_time')
+      .select('id, court_id, start_time, end_time, booking_type, student_name, users(name, color_code)')
       .eq('status', 'confirmed')
       .gte('start_time', `${date}T00:00:00`)
       .lt('start_time',  `${offsetDate(date, 1)}T00:00:00`)
@@ -52,6 +54,30 @@ export default async function DashboardPage({
   const bookings    = bookingsResult.data ?? []
   const displayName = profile?.name || profile?.email || authUser.email || 'Player'
   const isAdmin     = profile?.role === 'admin'
+
+  // Flatten teacher join data for ScheduleBooking
+  const bookingsMapped = bookings.map((b: any) => ({
+    id:            b.id,
+    court_id:      b.court_id,
+    start_time:    b.start_time,
+    end_time:      b.end_time,
+    booking_type:  b.booking_type ?? 'member',
+    student_name:  b.student_name ?? null,
+    teacher_name:  b.booking_type === 'teacher' ? (b.users?.name ?? null) : null,
+    teacher_color: b.booking_type === 'teacher' ? (b.users?.color_code ?? null) : null,
+  })) as ScheduleBooking[]
+
+  const isTeacher = profile?.role === 'teacher'
+
+  // Active lesson for QuickReleaseBanner (teacher only)
+  const now = new Date()
+  const activeLesson = isTeacher
+    ? (bookingsMapped.find(b =>
+        b.booking_type === 'teacher' &&
+        new Date(b.start_time) <= now &&
+        new Date(b.end_time) > now
+      ) ?? null)
+    : null
 
   const todayLabel = new Intl.DateTimeFormat('it-IT', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -98,11 +124,24 @@ export default async function DashboardPage({
       {/* ── Overview section ───────────────────────────────────────────────── */}
       {courts.length > 0 && (
         <section>
+          {isTeacher && (
+            <div className="flex flex-col gap-3">
+              <QuickReleaseBanner activeLesson={activeLesson ? {
+                id: activeLesson.id,
+                courtName: courts.find(c => c.id === activeLesson.court_id)?.name ?? 'Campo',
+                studentName: activeLesson.student_name,
+                startTime: activeLesson.start_time,
+                endTime: activeLesson.end_time,
+              } : null} />
+              <AnalogReminderBanner />
+            </div>
+          )}
           <DayScheduleCalendar
             courts={courts as ScheduleCourt[]}
-            bookings={bookings}
+            bookings={bookingsMapped}
             date={date}
             today={today}
+            userRole={profile?.role as 'admin' | 'member' | 'teacher' ?? 'member'}
           />
         </section>
       )}

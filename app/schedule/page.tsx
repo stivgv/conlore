@@ -35,7 +35,7 @@ export default async function SchedulePage({
       .returns<ScheduleCourt[]>(),
     supabase
       .from('bookings')
-      .select('id, court_id, start_time, end_time')
+      .select('id, court_id, start_time, end_time, booking_type, student_name, users(name, color_code)')
       .eq('status', 'confirmed')
       .gte('start_time', `${date}T00:00:00`)
       .lt('start_time',  `${offsetDate(date, 1)}T00:00:00`)
@@ -44,6 +44,18 @@ export default async function SchedulePage({
 
   const courts   = courtsResult.data  ?? []
   const bookings = bookingsResult.data ?? []
+
+  // Flatten teacher join data for ScheduleBooking
+  const bookingsMapped = bookings.map((b: any) => ({
+    id:            b.id,
+    court_id:      b.court_id,
+    start_time:    b.start_time,
+    end_time:      b.end_time,
+    booking_type:  b.booking_type ?? 'member',
+    student_name:  b.student_name ?? null,
+    teacher_name:  b.booking_type === 'teacher' ? (b.users?.name ?? null) : null,
+    teacher_color: b.booking_type === 'teacher' ? (b.users?.color_code ?? null) : null,
+  })) as ScheduleBooking[]
 
   const isToday = date === today
   const displayDate = new Intl.DateTimeFormat('it-IT', {
@@ -92,7 +104,7 @@ export default async function SchedulePage({
       </div>
 
       {/* Grid */}
-      <GlobalScheduleGrid courts={courts} bookings={bookings} date={date} />
+      <GlobalScheduleGrid courts={courts} bookings={bookingsMapped} date={date} />
 
     </div>
     </main>
