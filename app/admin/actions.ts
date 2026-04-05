@@ -29,6 +29,8 @@ export type AdminActionState = { status: 'success' | 'error'; message: string }
  */
 export async function adminCancelBooking(bookingId: string): Promise<AdminActionState> {
   const supabase = await requireAdmin()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { status: 'error', message: 'Utente non trovato.' }
 
   const { error } = await supabase
     .from('bookings')
@@ -36,6 +38,15 @@ export async function adminCancelBooking(bookingId: string): Promise<AdminAction
     .eq('id', bookingId)
 
   if (error) return { status: 'error', message: 'Impossibile annullare la prenotazione. Riprova.' }
+
+  // Audit trail: registra l'azione di cancellazione prenotazione
+  await supabase.from('audit_log').insert({
+    admin_id:    user.id,
+    action:      'cancel_booking',
+    entity_type: 'booking',
+    entity_id:   bookingId,
+    metadata:    { cancelled_at: new Date().toISOString() },
+  })
 
   revalidatePath('/admin')
   revalidatePath('/dashboard/my-bookings')
@@ -52,6 +63,8 @@ export async function updatePaymentStatus(
   status: 'pending' | 'paid' | 'no_show'
 ): Promise<AdminActionState> {
   const supabase = await requireAdmin()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { status: 'error', message: 'Utente non trovato.' }
 
   const { error } = await supabase
     .from('bookings')
@@ -59,6 +72,15 @@ export async function updatePaymentStatus(
     .eq('id', bookingId)
 
   if (error) return { status: 'error', message: 'Impossibile aggiornare il pagamento. Riprova.' }
+
+  // Audit trail: registra l'aggiornamento dello stato pagamento
+  await supabase.from('audit_log').insert({
+    admin_id:    user.id,
+    action:      'update_payment_status',
+    entity_type: 'booking',
+    entity_id:   bookingId,
+    metadata:    { new_status: status },
+  })
 
   revalidatePath('/admin')
   revalidatePath('/dashboard')
@@ -71,6 +93,8 @@ export async function updatePaymentStatus(
  */
 export async function toggleCourtStatus(courtId: string, currentStatus: boolean): Promise<AdminActionState> {
   const supabase = await requireAdmin()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { status: 'error', message: 'Utente non trovato.' }
 
   const { error } = await supabase
     .from('courts')
@@ -78,6 +102,15 @@ export async function toggleCourtStatus(courtId: string, currentStatus: boolean)
     .eq('id', courtId)
 
   if (error) return { status: 'error', message: 'Impossibile aggiornare lo stato del campo. Riprova.' }
+
+  // Audit trail: registra il cambio di stato del campo
+  await supabase.from('audit_log').insert({
+    admin_id:    user.id,
+    action:      'toggle_court_status',
+    entity_type: 'court',
+    entity_id:   courtId,
+    metadata:    { new_is_active: !currentStatus },
+  })
 
   revalidatePath('/admin')
   revalidatePath('/dashboard')
