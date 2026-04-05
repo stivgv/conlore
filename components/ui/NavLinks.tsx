@@ -2,21 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, CalendarDays, Calendar, GraduationCap, ShieldCheck, Settings } from 'lucide-react'
+import { LayoutGrid, CalendarDays, GraduationCap, ShieldCheck, Settings } from 'lucide-react'
 
 // Mapping href → permission key in role_permissions table
 const PERM_KEY: Record<string, string> = {
   '/dashboard':             'page_dashboard',
   '/dashboard/my-bookings': 'page_my_bookings',
   '/dashboard/teacher':     'page_teacher_dashboard',
-  '/schedule':              'page_schedule',
 }
 
 const baseLinks = [
   { href: '/dashboard',             label: 'Campi',        Icon: LayoutGrid    },
   { href: '/dashboard/my-bookings', label: 'Prenotazioni', Icon: CalendarDays  },
   { href: '/dashboard/teacher',     label: 'Maestro',      Icon: GraduationCap },
-  { href: '/schedule',              label: 'Orario',       Icon: Calendar      },
 ]
 
 const adminLinks = [
