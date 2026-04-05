@@ -303,12 +303,12 @@ export default function DayScheduleCalendar({
                           key={court.id}
                           className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
                         >
-                          <div className="h-[64px] rounded-xl border border-rg-clay/30 bg-rg-clay/10 border-l-4 border-l-rg-clay flex flex-col justify-center px-3 gap-1">
+                          <div className="h-[64px] rounded-xl border border-rg-clay/60 bg-rg-clay/25 border-l-[4px] border-l-rg-clay flex flex-col justify-center px-3 gap-1">
                             <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-rg-clay flex-shrink-0" />
-                              <span className="text-xs font-bold text-rg-dark leading-none">Prenotato</span>
+                              <span className="text-xs font-bold text-rg-clay leading-none">Occupato</span>
                             </div>
-                            <span className="text-[11px] text-rg-dark/50 pl-4 leading-none">
+                            <span className="text-[11px] text-rg-dark/65 pl-4 leading-none font-medium">
                               {formatBookingTime(booking)}
                             </span>
                           </div>
@@ -323,7 +323,9 @@ export default function DayScheduleCalendar({
                           key={court.id}
                           className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
                         >
-                          <div className="h-[64px] rounded-xl bg-rg-clay/8 border border-rg-clay/15 border-l-4 border-l-rg-clay/40" />
+                          <div className="h-[64px] rounded-xl bg-rg-clay/20 border border-rg-clay/50 border-l-[4px] border-l-rg-clay/80 flex items-center px-3">
+                            <span className="text-xs font-semibold text-rg-clay/80">Occupato</span>
+                          </div>
                         </td>
                       )
                     }
