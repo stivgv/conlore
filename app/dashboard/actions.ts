@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { PRICING } from '@/lib/config/pricing'
 
 export async function signOut() {
   const supabase = await createClient()
@@ -21,6 +22,23 @@ export async function memberCancelBooking(bookingId: string): Promise<CancelBook
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { status: 'error', message: 'Non autenticato.' }
+
+  // Leggi la prenotazione per verificare start_time
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('start_time')
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!booking) {
+    return { status: 'error', message: 'Prenotazione non trovata.' }
+  }
+
+  const hoursUntil = (new Date(booking.start_time).getTime() - Date.now()) / 3_600_000
+  if (hoursUntil < 24) {
+    return { status: 'error', message: 'Non è possibile annullare una prenotazione nelle 24 ore precedenti.' }
+  }
 
   // RLS ensures only the owner can update, but we also scope by user_id explicitly
   const { error } = await supabase
@@ -80,38 +98,26 @@ export async function createBooking(
     return { status: 'error', message: 'Bookings must be between 1 and 2 hours long.' }
   }
 
-  // User ubiquity check — confirmed booking already overlapping this window
-  const { data: overlapping } = await supabase
-    .from('bookings')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('status', 'confirmed')
-    .lt('start_time', end)    // existing booking starts before new end
-    .gt('end_time', start)    // existing booking ends after new start
-    .limit(1)
+  // Calculate price server-side using centralized pricing config, rounded to nearest euro
+  const totalPrice = Math.round((durationMinutes / 60) * PRICING.PER_HOUR)
 
-  if (overlapping && overlapping.length > 0) {
-    return { status: 'error', message: 'You already have a booking during this time slot.' }
-  }
-
-  // Calculate price server-side: 20€/hour, rounded to nearest euro
-  const totalPrice = Math.round((durationMinutes / 60) * 20)
-
-  const { error } = await supabase.from('bookings').insert({
-    user_id:     user.id,
-    court_id:    courtId,
-    start_time:  start,
-    end_time:    end,
-    status:      'confirmed',
-    total_price: totalPrice,
+  // Atomic overlap-check + INSERT via stored procedure to prevent TOCTOU race conditions
+  const { error } = await supabase.rpc('create_booking_safe', {
+    p_court_id:    courtId,
+    p_user_id:     user.id,
+    p_start_time:  start,
+    p_end_time:    end,
+    p_total_price: totalPrice,
   })
 
   if (error) {
-    // 23P01 = exclusion constraint violation (our no_overlap GIST)
-    if (error.code === '23P01') {
-      return { status: 'error', message: 'This court is already booked for this time slot.' }
+    if (error.message.includes('COURT_OVERLAP') || error.code === '23P01') {
+      return { status: 'error', message: 'Il campo è già occupato in questo orario.' }
     }
-    return { status: 'error', message: 'Booking failed. Please try again.' }
+    if (error.message.includes('USER_OVERLAP') || error.code === '23514') {
+      return { status: 'error', message: 'Hai già una prenotazione in questo orario.' }
+    }
+    return { status: 'error', message: 'Prenotazione fallita. Riprova.' }
   }
 
   revalidatePath('/dashboard')

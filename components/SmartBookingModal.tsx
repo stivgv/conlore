@@ -6,6 +6,7 @@ import {
   X, Clock, CalendarDays, CheckCircle2, AlertCircle,
   Loader2, Euro, CalendarPlus, Smartphone,
 } from 'lucide-react'
+import { PRICING } from '@/lib/config/pricing'
 
 interface SmartBookingModalProps {
   courtId: string
@@ -14,11 +15,6 @@ interface SmartBookingModalProps {
   preSelectedStartTime: string
   onClose: () => void
 }
-
-// ── Pricing constants ────────────────────────────────────────────────────────
-const PRICE_PER_HOUR = 20
-const LIGHT_FEE      = 5   // €5 surcharge for evening slots
-const BALLS_FEE      = 8   // €8 for a tube of balls
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -101,10 +97,10 @@ export default function SmartBookingModal({
 
   // ── Pricing math ────────────────────────────────────────────────────────────
   const endTime       = calcEndTime(preSelectedStartTime, duration)
-  const courtCost     = PRICE_PER_HOUR * (duration / 60)
+  const courtCost     = PRICING.PER_HOUR * (duration / 60)
   const lightsApplied = needsLights(endTime)
-  const lightsCost    = lightsApplied ? LIGHT_FEE : 0
-  const ballsCost     = wantsBalls ? BALLS_FEE : 0
+  const lightsCost    = lightsApplied ? PRICING.LIGHT_FEE : 0
+  const ballsCost     = wantsBalls ? PRICING.BALLS_FEE : 0
   const totalPrice    = courtCost + lightsCost + ballsCost
   const pricePerPerson = totalPrice / playersCount
 
@@ -261,7 +257,7 @@ export default function SmartBookingModal({
                       >
                         {d === 60 ? '1 Ora' : '2 Ore'}
                         <span className="block text-[10px] font-semibold mt-0.5" style={{ opacity: 0.65 }}>
-                          {formatPrice(PRICE_PER_HOUR * (d / 60))}
+                          {formatPrice(PRICING.PER_HOUR * (d / 60))}
                         </span>
                       </button>
                     ))}
@@ -282,7 +278,7 @@ export default function SmartBookingModal({
                           <p className="text-[10px] text-rg-dark/40 mt-0.5">Fascia serale — applicata dopo le 18:00</p>
                         </div>
                       </div>
-                      <span className="text-xs font-bold flex-shrink-0" style={{ color: '#d54527' }}>+{formatPrice(LIGHT_FEE)}</span>
+                      <span className="text-xs font-bold flex-shrink-0" style={{ color: '#d54527' }}>+{formatPrice(PRICING.LIGHT_FEE)}</span>
                     </div>
                   )}
 
@@ -303,7 +299,7 @@ export default function SmartBookingModal({
                       className="text-xs font-bold flex-shrink-0 transition-colors"
                       style={{ color: wantsBalls ? '#d54527' : '#31181540' }}
                     >
-                      +{formatPrice(BALLS_FEE)}
+                      +{formatPrice(PRICING.BALLS_FEE)}
                     </span>
                   </button>
                 </div>
@@ -320,13 +316,13 @@ export default function SmartBookingModal({
                     {lightsApplied && (
                       <div className="flex items-center justify-between text-[11px] text-white/40">
                         <span>💡 Illuminazione</span>
-                        <span>{formatPrice(LIGHT_FEE)}</span>
+                        <span>{formatPrice(PRICING.LIGHT_FEE)}</span>
                       </div>
                     )}
                     {wantsBalls && (
                       <div className="flex items-center justify-between text-[11px] text-white/40">
                         <span>🎾 Palline</span>
-                        <span>{formatPrice(BALLS_FEE)}</span>
+                        <span>{formatPrice(PRICING.BALLS_FEE)}</span>
                       </div>
                     )}
                   </div>
