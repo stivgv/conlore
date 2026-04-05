@@ -319,7 +319,7 @@ export default function DayScheduleCalendar({
                               className="h-[64px] rounded-xl border border-l-[4px] flex flex-col justify-center px-3 gap-1"
                             >
                               <span style={{ color }} className="text-xs font-bold leading-none truncate">
-                                🎾 {booking.teacher_name ?? 'Maestro'} / {booking.student_name ?? '—'}
+                                🎾 {booking.teacher_name ?? 'Maestro'}
                               </span>
                               {isBookingStart(booking, slot) && (
                                 <span className="text-[11px] text-rg-dark/65 leading-none font-medium">

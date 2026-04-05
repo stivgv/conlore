@@ -48,9 +48,10 @@ function isApplicable(court: ScheduleCourt, slot: string): boolean {
   return (sh * 60 + sm) >= (oh * 60 + om) && (sh * 60 + sm) < (ch * 60 + cm)
 }
 
-/** Trova la booking che occupa questo campo+giorno+slot (sovrapposizione di 1h) */
+/** Trova la booking che occupa questo campo+giorno+slot (sovrapposizione di 1h).
+ *  Usa UTC perché i tempi sono salvati come UTC nel DB. */
 function getBooking(bookings: WeekBooking[], courtId: string, date: string, slot: string): WeekBooking | null {
-  const start = new Date(`${date}T${slot}:00`)
+  const start = new Date(`${date}T${slot}:00Z`)
   const end   = new Date(start.getTime() + 3_600_000)
   return bookings.find(b =>
     b.court_id === courtId &&
@@ -59,9 +60,9 @@ function getBooking(bookings: WeekBooking[], courtId: string, date: string, slot
   ) ?? null
 }
 
-/** True se lo slot è già passato */
+/** True se lo slot è già passato (UTC) */
 function isPast(date: string, slot: string): boolean {
-  return new Date(`${date}T${slot}:00`).getTime() + 3_600_000 <= Date.now()
+  return new Date(`${date}T${slot}:00Z`).getTime() + 3_600_000 <= Date.now()
 }
 
 /** Formatta ISO → HH:MM (UTC) */
