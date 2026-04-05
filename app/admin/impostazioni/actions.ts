@@ -13,20 +13,20 @@ async function requireAdmin() {
   return supabase
 }
 
-/** Toggles a single role permission on or off. */
-export async function updateRolePermission(
-  role: 'member' | 'teacher',
-  permission: string,
-  enabled: boolean
+/** Saves all role permissions in bulk (called by PermissionsEditor on explicit save). */
+export async function saveAllPermissions(
+  updates: { role: 'member' | 'teacher'; permission: string; enabled: boolean }[]
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const supabase = await requireAdmin()
-    const { error } = await supabase
-      .from('role_permissions')
-      .update({ enabled, updated_at: new Date().toISOString() })
-      .eq('role', role)
-      .eq('permission', permission)
-    if (error) return { ok: false, error: error.message }
+    for (const { role, permission, enabled } of updates) {
+      const { error } = await supabase
+        .from('role_permissions')
+        .update({ enabled, updated_at: new Date().toISOString() })
+        .eq('role', role)
+        .eq('permission', permission)
+      if (error) return { ok: false, error: error.message }
+    }
     revalidatePath('/admin/impostazioni')
     return { ok: true }
   } catch (e: any) {
