@@ -174,6 +174,9 @@ export async function createTeacherBooking(
 
   if (error) {
     console.error('[createTeacherBooking] RPC error:', { code: error.code, message: error.message })
+    if (error.message.includes('TEACHER_OVERLAP') || error.code === '23514') {
+      return { status: 'error', message: 'Hai già una lezione programmata in questo orario su un altro campo.' }
+    }
     if (error.message.includes('COURT_OVERLAP') || error.code === '23P01') {
       return { status: 'error', message: 'Il campo è già occupato in questo orario.' }
     }
@@ -181,6 +184,7 @@ export async function createTeacherBooking(
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/dashboard/teacher')
   return { status: 'success' }
 }
 
@@ -212,5 +216,6 @@ export async function teacherCancelBooking(bookingId: string): Promise<CancelBoo
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/my-bookings')
+  revalidatePath('/dashboard/teacher')
   return { status: 'success', message: 'Lezione annullata.' }
 }
