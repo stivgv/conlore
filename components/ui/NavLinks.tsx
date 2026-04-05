@@ -2,22 +2,28 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, CalendarDays, Calendar } from 'lucide-react'
+import { LayoutGrid, CalendarDays, Calendar, ShieldCheck } from 'lucide-react'
 
-const links = [
+const baseLinks = [
   { href: '/dashboard',             label: 'Campi',        Icon: LayoutGrid   },
   { href: '/dashboard/my-bookings', label: 'Prenotazioni', Icon: CalendarDays },
   { href: '/schedule',              label: 'Orario',       Icon: Calendar     },
 ]
 
-export default function NavLinks() {
+interface NavLinksProps {
+  isAdmin?: boolean
+}
+
+export default function NavLinks({ isAdmin }: NavLinksProps) {
   const pathname = usePathname()
+
+  const links = isAdmin
+    ? [...baseLinks, { href: '/admin', label: 'Admin', Icon: ShieldCheck }]
+    : baseLinks
 
   return (
     <nav className="flex items-center gap-0.5">
       {links.map(({ href, label, Icon }) => {
-        // Per href '/' usa match esatto per evitare che matchi tutto
-        // Per gli altri href: attivo se siamo esattamente su quella pagina o in una sua sotto-pagina
         const isActive = href === '/'
           ? pathname === href
           : pathname === href || pathname.startsWith(href + '/')

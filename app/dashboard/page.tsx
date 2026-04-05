@@ -6,6 +6,7 @@ import DayScheduleCalendar from '@/components/DayScheduleCalendar'
 import { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
 import QuickReleaseBanner from '@/components/ui/QuickReleaseBanner'
 import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
+import { getSimulatedProfile } from '@/lib/simulate'
 
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -52,8 +53,15 @@ export default async function DashboardPage({
   const profile     = profileResult.data
   const courts      = courtsResult.data  ?? []
   const bookings    = bookingsResult.data ?? []
-  const displayName = profile?.name || profile?.email || authUser.email || 'Player'
   const isAdmin     = profile?.role === 'admin'
+
+  // If admin is simulating another profile, use that role for UI rendering
+  const simulated   = isAdmin ? await getSimulatedProfile() : null
+  const activeRole  = (simulated?.role ?? profile?.role ?? 'member') as 'admin' | 'member' | 'teacher'
+
+  const displayName = simulated
+    ? (simulated.name || simulated.email)
+    : (profile?.name || profile?.email || authUser.email || 'Player')
 
   // Flatten teacher join data for ScheduleBooking
   const bookingsMapped = bookings.map((b: any) => ({
@@ -67,7 +75,7 @@ export default async function DashboardPage({
     teacher_color: b.booking_type === 'teacher' ? (b.users?.color_code ?? null) : null,
   })) as ScheduleBooking[]
 
-  const isTeacher = profile?.role === 'teacher'
+  const isTeacher = activeRole === 'teacher'
 
   // Active lesson for QuickReleaseBanner (teacher only)
   const now = new Date()
@@ -91,7 +99,7 @@ export default async function DashboardPage({
       <div className="mb-12 pb-8 border-b border-rg-dark/10">
         <p className="text-sm font-medium text-rg-clay mb-1">{todayLabel}</p>
         <h1 className="text-3xl font-bold text-rg-dark tracking-tight">
-          Bentornato, {isAdmin ? 'Admin' : displayName} 👋
+          Bentornato, {isAdmin && !simulated ? 'Admin' : displayName} 👋
         </h1>
         <p className="text-rg-dark/50 mt-2 text-base">
           {courts.length > 0
@@ -141,7 +149,7 @@ export default async function DashboardPage({
             bookings={bookingsMapped}
             date={date}
             today={today}
-            userRole={profile?.role as 'admin' | 'member' | 'teacher' ?? 'member'}
+            userRole={activeRole}
           />
         </section>
       )}

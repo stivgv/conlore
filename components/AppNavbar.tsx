@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/dashboard/actions'
 import NavLinks from '@/components/ui/NavLinks'
+import ProfileSimulator from '@/components/ui/ProfileSimulator'
+import { getSimulatedProfile } from '@/lib/simulate'
 import { LogOut } from 'lucide-react'
 
 export default async function AppNavbar() {
@@ -12,18 +14,47 @@ export default async function AppNavbar() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role, email, name')
+    .select('role, email, name, color_code')
     .eq('id', authUser.id)
-    .single<{ role: string; email: string; name: string }>()
+    .single<{ role: string; email: string; name: string; color_code: string | null }>()
 
-  const isAdmin      = profile?.role === 'admin'
-  const isTeacher    = profile?.role === 'teacher'
-  const email        = profile?.email ?? authUser.email ?? ''
-  const displayName  = profile?.name || email
+  const isAdmin   = profile?.role === 'admin'
+  const isTeacher = profile?.role === 'teacher'
+
+  // If admin is simulating another profile, use that for display
+  const simulated    = isAdmin ? await getSimulatedProfile() : null
+  const activeProfile = simulated ?? profile
+
+  const email        = activeProfile?.email ?? authUser.email ?? ''
+  const displayName  = activeProfile?.name  || email
   const avatarLetter = displayName.charAt(0).toUpperCase()
+  const activeRole   = activeProfile?.role ?? 'member'
+
+  const roleDisplay =
+    activeRole === 'teacher' ? 'Maestro' :
+    activeRole === 'admin'   ? 'Admin'   : 'Socio'
+
+  // Fetch all users for the profile simulator (admin only)
+  const allUsers = isAdmin
+    ? (await supabase.from('users').select('id, name, email, role, color_code').order('role').order('name')).data ?? []
+    : []
+
+  // Avatar color: teacher uses their color_code, others use default clay
+  const teacherColor = activeRole === 'teacher'
+    ? ((activeProfile as any)?.color_code ?? '#6366f1')
+    : null
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-rg-dark/10">
+
+      {/* Simulation banner */}
+      {simulated && (
+        <div className="bg-violet-600 text-white text-xs font-medium text-center py-1 px-4">
+          👁 Stai simulando la vista di <span className="font-bold">{simulated.name || simulated.email}</span>
+          {' '}({roleDisplay})
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4 min-w-0">
 
         {/* Brand + nav */}
@@ -36,34 +67,43 @@ export default async function AppNavbar() {
               Tennis Club
             </span>
           </Link>
-          <NavLinks />
+          <NavLinks isAdmin={isAdmin} />
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
-            >
-              ⚙ Admin
-            </Link>
-          )}
-          {isTeacher && (
+
+          {/* Teacher badge (non-admin) */}
+          {isTeacher && !isAdmin && (
             <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
               🎾 Maestro
             </span>
           )}
 
+          {/* Profile simulator (admin only) */}
+          {isAdmin && (
+            <ProfileSimulator users={allUsers} simulating={simulated} />
+          )}
+
+          {/* Profile display */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-rg-clay/15 border border-rg-clay/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-rg-dark text-xs font-bold">{avatarLetter}</span>
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={teacherColor
+                ? { backgroundColor: `${teacherColor}22`, border: `1px solid ${teacherColor}60` }
+                : { backgroundColor: 'rgb(213 69 39 / 0.15)', border: '1px solid rgb(213 69 39 / 0.30)' }
+              }
+            >
+              <span
+                className="text-xs font-bold"
+                style={teacherColor ? { color: teacherColor } : { color: '#311815' }}
+              >
+                {avatarLetter}
+              </span>
             </div>
             <div className="hidden md:flex flex-col leading-tight">
               <span className="text-xs font-medium text-rg-dark truncate max-w-[140px]">{displayName}</span>
-              <span className="text-[11px] text-rg-dark/45 capitalize">
-                {profile?.role === 'teacher' ? 'Maestro' : profile?.role === 'admin' ? 'Admin' : 'Socio'}
-              </span>
+              <span className="text-[11px] text-rg-dark/45">{roleDisplay}</span>
             </div>
           </div>
 
