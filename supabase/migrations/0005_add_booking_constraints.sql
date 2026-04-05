@@ -3,10 +3,10 @@
 --   1. start_time must be strictly before end_time
 --   2. total_price must be non-negative
 
-ALTER TABLE public.bookings
-  ADD CONSTRAINT IF NOT EXISTS booking_time_order
-    CHECK (start_time < end_time);
+DO $$ BEGIN
+  ALTER TABLE public.bookings ADD CONSTRAINT booking_time_order CHECK (start_time < end_time);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-ALTER TABLE public.bookings
-  ADD CONSTRAINT IF NOT EXISTS booking_price_positive
-    CHECK (total_price >= 0);
+DO $$ BEGIN
+  ALTER TABLE public.bookings ADD CONSTRAINT booking_price_positive CHECK (total_price >= 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
