@@ -222,15 +222,17 @@ export default async function TeacherDashboardPage({
         </div>
 
         {/* ── 3. Weekly calendar ───────────────────────────────────────── */}
-        <TeacherWeeklyCalendar
-          courts={courts}
-          bookings={weekBookings}
-          weekStart={weekStart}
-          today={today}
-          teacherId={authUser.id}
-          teacherName={displayName}
-          teacherColor={teacherColor}
-        />
+        <div className="w-[80%] mx-auto">
+          <TeacherWeeklyCalendar
+            courts={courts}
+            bookings={weekBookings}
+            weekStart={weekStart}
+            today={today}
+            teacherId={authUser.id}
+            teacherName={displayName}
+            teacherColor={teacherColor}
+          />
+        </div>
 
       </div>
     </main>
