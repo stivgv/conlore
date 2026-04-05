@@ -7,7 +7,16 @@ const SLOTS = Array.from({ length: 31 }, (_, i) => {
 })
 
 export type ScheduleCourt   = { id: string; name: string; open_time: string; close_time: string }
-export type ScheduleBooking = { id: string; court_id: string; start_time: string; end_time: string }
+export type ScheduleBooking = {
+  id: string
+  court_id: string
+  start_time: string
+  end_time: string
+  booking_type:  'member' | 'teacher'
+  student_name:  string | null
+  teacher_name:  string | null  // flattened from users.name join
+  teacher_color: string | null  // flattened from users.color_code join
+}
 
 function isSlotBooked(booking: ScheduleBooking, courtId: string, slotStart: Date): boolean {
   if (booking.court_id !== courtId) return false

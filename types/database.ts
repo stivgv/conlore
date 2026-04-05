@@ -1,9 +1,11 @@
 export interface User {
   id: string;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'teacher';
   name: string;
   email: string;
   created_at: string;
+  /** Hex color code for teachers (e.g. '#3b82f6'). NULL for admin/member. */
+  color_code: string | null;
 }
 
 export interface Court {
@@ -16,6 +18,7 @@ export interface Court {
 }
 
 export type PaymentStatus = 'pending' | 'paid' | 'no_show'
+export type BookingType = 'member' | 'teacher'
 
 export interface Booking {
   id: string;
@@ -28,4 +31,8 @@ export interface Booking {
   total_price: number | null;
   /** Nullable: payment is set asynchronously after booking creation */
   payment_status: PaymentStatus | null;
+  /** 'member' for regular bookings, 'teacher' for lesson bookings */
+  booking_type: BookingType;
+  /** Name of the student — populated only for teacher bookings */
+  student_name: string | null;
 }

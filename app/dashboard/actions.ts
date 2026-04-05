@@ -127,3 +127,90 @@ export async function createBooking(
   revalidatePath('/dashboard')
   return { status: 'success' }
 }
+
+export async function createTeacherBooking(
+  _prevState: BookingState,
+  formData: FormData
+): Promise<BookingState> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { status: 'error', message: 'Non autenticato.' }
+
+  // Verify teacher role server-side
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (profile?.role !== 'teacher') {
+    return { status: 'error', message: 'Accesso non autorizzato.' }
+  }
+
+  const courtId     = formData.get('courtId')?.toString()     ?? ''
+  const date        = formData.get('date')?.toString()        ?? ''
+  const startTime   = formData.get('startTime')?.toString()   ?? ''
+  const endTime     = formData.get('endTime')?.toString()     ?? ''
+  const studentName = formData.get('studentName')?.toString()?.trim() ?? ''
+
+  if (!courtId || !date || !startTime || !endTime || !studentName) {
+    return { status: 'error', message: 'Compila tutti i campi.' }
+  }
+
+  const start = `${date}T${startTime}:00+00:00`
+  const end   = `${date}T${endTime}:00+00:00`
+
+  if (new Date(start).getTime() < Date.now()) {
+    return { status: 'error', message: 'Non puoi prenotare nel passato.' }
+  }
+
+  const { error } = await supabase.rpc('create_teacher_booking', {
+    p_court_id:     courtId,
+    p_teacher_id:   user.id,
+    p_start_time:   start,
+    p_end_time:     end,
+    p_student_name: studentName,
+  })
+
+  if (error) {
+    console.error('[createTeacherBooking] RPC error:', { code: error.code, message: error.message })
+    if (error.message.includes('COURT_OVERLAP') || error.code === '23P01') {
+      return { status: 'error', message: 'Il campo è già occupato in questo orario.' }
+    }
+    return { status: 'error', message: `Prenotazione fallita. Riprova.` }
+  }
+
+  revalidatePath('/dashboard')
+  return { status: 'success' }
+}
+
+export async function teacherCancelBooking(bookingId: string): Promise<CancelBookingState> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { status: 'error', message: 'Non autenticato.' }
+
+  // Verify teacher role
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (profile?.role !== 'teacher') {
+    return { status: 'error', message: 'Accesso non autorizzato.' }
+  }
+
+  // No 24h restriction for teachers — cancel at any time
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .eq('booking_type', 'teacher')
+
+  if (error) return { status: 'error', message: 'Impossibile annullare la lezione. Riprova.' }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/my-bookings')
+  return { status: 'success', message: 'Lezione annullata.' }
+}
