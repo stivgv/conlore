@@ -30,6 +30,12 @@ export const PERMISSIONS = [
     category:    'Pagine',
   },
   {
+    key:         'page_teacher_dashboard',
+    label:       'Dashboard Maestro',
+    description: 'Accesso alla dashboard personale del maestro con lezioni e statistiche',
+    category:    'Pagine',
+  },
+  {
     key:         'book_courts',
     label:       'Prenotazione Campi',
     description: 'Possibilità di prenotare uno slot orario su un campo',
