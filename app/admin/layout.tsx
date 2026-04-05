@@ -4,7 +4,19 @@ import { createClient } from '@/lib/supabase/server'
 import type { User } from '@/types/database'
 import { signOut } from '@/app/dashboard/actions'
 import NavLinks from '@/components/ui/NavLinks'
-import { LogOut, ShieldCheck } from 'lucide-react'
+import { LogOut, ShieldCheck, Settings } from 'lucide-react'
+
+// Server-safe nav link — no hooks, just renders
+function AdminNavLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="text-xs font-medium px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+    >
+      {label}
+    </Link>
+  )
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -40,6 +52,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </span>
             </Link>
             <NavLinks />
+            <div className="hidden sm:flex items-center gap-1">
+              <AdminNavLink href="/admin" label="Pannello" />
+              <AdminNavLink href="/admin/impostazioni" label="Impostazioni" />
+            </div>
           </div>
 
           {/* Right side */}
