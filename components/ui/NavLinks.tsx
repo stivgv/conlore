@@ -2,12 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, CalendarDays, Calendar, ShieldCheck } from 'lucide-react'
+import { LayoutGrid, CalendarDays, Calendar, ShieldCheck, Settings } from 'lucide-react'
 
 const baseLinks = [
   { href: '/dashboard',             label: 'Campi',        Icon: LayoutGrid   },
   { href: '/dashboard/my-bookings', label: 'Prenotazioni', Icon: CalendarDays },
   { href: '/schedule',              label: 'Orario',       Icon: Calendar     },
+]
+
+const adminLinks = [
+  { href: '/admin',              label: 'Pannello',      Icon: ShieldCheck },
+  { href: '/admin/impostazioni', label: 'Impostazioni',  Icon: Settings    },
 ]
 
 interface NavLinksProps {
@@ -17,9 +22,7 @@ interface NavLinksProps {
 export default function NavLinks({ isAdmin }: NavLinksProps) {
   const pathname = usePathname()
 
-  const links = isAdmin
-    ? [...baseLinks, { href: '/admin', label: 'Admin', Icon: ShieldCheck }]
-    : baseLinks
+  const links = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks
 
   return (
     <nav className="flex items-center gap-0.5">
