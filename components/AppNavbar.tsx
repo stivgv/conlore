@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/dashboard/actions'
 import NavLinks from '@/components/ui/NavLinks'
 import ProfileSimulator from '@/components/ui/ProfileSimulator'
-import { getSimulatedProfile } from '@/lib/simulate'
+import { getSimulatedRole } from '@/lib/simulate'
 import { LogOut } from 'lucide-react'
 
 export default async function AppNavbar() {
@@ -21,37 +21,29 @@ export default async function AppNavbar() {
   const isAdmin   = profile?.role === 'admin'
   const isTeacher = profile?.role === 'teacher'
 
-  // If admin is simulating another profile, use that for display
-  const simulated    = isAdmin ? await getSimulatedProfile() : null
-  const activeProfile = simulated ?? profile
+  // If admin is simulating a role, read the cookie
+  const simulatingRole = isAdmin ? await getSimulatedRole() : null
+  const activeRole     = simulatingRole ?? (profile?.role as 'admin' | 'member' | 'teacher' ?? 'member')
 
-  const email        = activeProfile?.email ?? authUser.email ?? ''
-  const displayName  = activeProfile?.name  || email
+  const email        = profile?.email ?? authUser.email ?? ''
+  const displayName  = profile?.name || email
   const avatarLetter = displayName.charAt(0).toUpperCase()
-  const activeRole   = activeProfile?.role ?? 'member'
 
   const roleDisplay =
     activeRole === 'teacher' ? 'Maestro' :
     activeRole === 'admin'   ? 'Admin'   : 'Socio'
 
-  // Fetch all users for the profile simulator (admin only)
-  const allUsers = isAdmin
-    ? (await supabase.from('users').select('id, name, email, role, color_code').order('role').order('name')).data ?? []
-    : []
-
-  // Avatar color: teacher uses their color_code, others use default clay
-  const teacherColor = activeRole === 'teacher'
-    ? ((activeProfile as any)?.color_code ?? '#6366f1')
-    : null
+  // Teacher avatar color (only when actually a teacher, not simulating one)
+  const teacherColor = isTeacher ? (profile?.color_code ?? '#6366f1') : null
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-rg-dark/10">
 
       {/* Simulation banner */}
-      {simulated && (
+      {simulatingRole && (
         <div className="bg-violet-600 text-white text-xs font-medium text-center py-1 px-4">
-          👁 Stai simulando la vista di <span className="font-bold">{simulated.name || simulated.email}</span>
-          {' '}({roleDisplay})
+          👁 Modalità simulazione — vista{' '}
+          <span className="font-bold">{simulatingRole === 'teacher' ? 'Maestro' : 'Socio'}</span>
         </div>
       )}
 
@@ -73,17 +65,15 @@ export default async function AppNavbar() {
         {/* Right side */}
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
 
-          {/* Teacher badge (non-admin) */}
-          {isTeacher && !isAdmin && (
+          {/* Teacher badge (non-admin teachers only) */}
+          {isTeacher && (
             <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
               🎾 Maestro
             </span>
           )}
 
           {/* Profile simulator (admin only) */}
-          {isAdmin && (
-            <ProfileSimulator users={allUsers} simulating={simulated} />
-          )}
+          {isAdmin && <ProfileSimulator simulatingRole={simulatingRole} />}
 
           {/* Profile display */}
           <div className="flex items-center gap-2.5">
