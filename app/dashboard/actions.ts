@@ -111,13 +111,17 @@ export async function createBooking(
   })
 
   if (error) {
+    console.error('[createBooking] RPC error:', { code: error.code, message: error.message, details: error.details, hint: error.hint })
     if (error.message.includes('COURT_OVERLAP') || error.code === '23P01') {
       return { status: 'error', message: 'Il campo è già occupato in questo orario.' }
     }
     if (error.message.includes('USER_OVERLAP') || error.code === '23514') {
       return { status: 'error', message: 'Hai già una prenotazione in questo orario.' }
     }
-    return { status: 'error', message: 'Prenotazione fallita. Riprova.' }
+    if (error.code === '42883') {
+      return { status: 'error', message: 'Errore di configurazione del server. Contatta l\'amministratore.' }
+    }
+    return { status: 'error', message: `Prenotazione fallita (${error.code ?? 'ERR'}). Riprova.` }
   }
 
   revalidatePath('/dashboard')
