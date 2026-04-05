@@ -4,6 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutGrid, CalendarDays, Calendar, ShieldCheck, Settings } from 'lucide-react'
 
+// Mapping href → permission key in role_permissions table
+const PERM_KEY: Record<string, string> = {
+  '/dashboard':             'page_dashboard',
+  '/dashboard/my-bookings': 'page_my_bookings',
+  '/schedule':              'page_schedule',
+}
+
 const baseLinks = [
   { href: '/dashboard',             label: 'Campi',        Icon: LayoutGrid   },
   { href: '/dashboard/my-bookings', label: 'Prenotazioni', Icon: CalendarDays },
@@ -16,13 +23,27 @@ const adminLinks = [
 ]
 
 interface NavLinksProps {
-  isAdmin?: boolean
+  isAdmin?:     boolean
+  /** True when admin is currently simulating a non-admin role */
+  isSimulating?: boolean
+  /** Permission map for the active role — null means full access (admin not simulating) */
+  permissions?: Record<string, boolean> | null
 }
 
-export default function NavLinks({ isAdmin }: NavLinksProps) {
+export default function NavLinks({ isAdmin, isSimulating, permissions }: NavLinksProps) {
   const pathname = usePathname()
 
-  const links = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks
+  // Filter base links by role_permissions (null = no filter, all visible)
+  const visibleBase = baseLinks.filter(link => {
+    if (!permissions) return true
+    const key = PERM_KEY[link.href]
+    return key ? (permissions[key] !== false) : true
+  })
+
+  // Admin-specific links only when actually admin and NOT simulating another role
+  const links = (isAdmin && !isSimulating)
+    ? [...visibleBase, ...adminLinks]
+    : visibleBase
 
   return (
     <nav className="flex items-center gap-0.5">

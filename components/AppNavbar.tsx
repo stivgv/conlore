@@ -25,6 +25,20 @@ export default async function AppNavbar() {
   const simulatingRole = isAdmin ? await getSimulatedRole() : null
   const activeRole     = simulatingRole ?? (profile?.role as 'admin' | 'member' | 'teacher' ?? 'member')
 
+  // Fetch permissions for the effective role (member/teacher).
+  // Admins not simulating skip the query (full access).
+  let permMap: Record<string, boolean> | null = null
+  if (activeRole !== 'admin') {
+    const { data: perms } = await supabase
+      .from('role_permissions')
+      .select('permission, enabled')
+      .eq('role', activeRole)
+    permMap = {}
+    for (const p of perms ?? []) {
+      permMap[p.permission] = p.enabled
+    }
+  }
+
   const email        = profile?.email ?? authUser.email ?? ''
   const displayName  = profile?.name || email
   const avatarLetter = displayName.charAt(0).toUpperCase()
@@ -59,7 +73,7 @@ export default async function AppNavbar() {
               Tennis Club
             </span>
           </Link>
-          <NavLinks isAdmin={isAdmin} />
+          <NavLinks isAdmin={isAdmin} isSimulating={!!simulatingRole} permissions={permMap} />
         </div>
 
         {/* Right side */}
