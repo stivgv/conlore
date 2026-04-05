@@ -6,7 +6,9 @@ import DayScheduleCalendar from '@/components/DayScheduleCalendar'
 import { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
 import QuickReleaseBanner from '@/components/ui/QuickReleaseBanner'
 import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
+import WeatherBanner from '@/components/WeatherBanner'
 import { getSimulatedRole } from '@/lib/simulate'
+import { getActiveWeatherBlock } from '@/app/admin/weather-actions'
 
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -29,7 +31,7 @@ export default async function DashboardPage({
   const today = new Date().toLocaleDateString('en-CA')
   const date  = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? '') ? sp.date! : today
 
-  const [profileResult, courtsResult, bookingsResult] = await Promise.all([
+  const [profileResult, courtsResult, bookingsResult, activeWeatherBlock] = await Promise.all([
     supabase
       .from('users')
       .select('role, name, email')
@@ -48,6 +50,7 @@ export default async function DashboardPage({
       .gte('start_time', `${date}T00:00:00`)
       .lt('start_time',  `${offsetDate(date, 1)}T00:00:00`)
       .returns<ScheduleBooking[]>(),
+    getActiveWeatherBlock(),
   ])
 
   const profile     = profileResult.data
@@ -106,6 +109,13 @@ export default async function DashboardPage({
         </p>
       </div>
 
+      {/* ── Weather banner (shown only when a block is active) ─────────────── */}
+      {activeWeatherBlock && (
+        <div className="mb-8">
+          <WeatherBanner activeBlock={activeWeatherBlock} />
+        </div>
+      )}
+
       {/* ── Master Cards ───────────────────────────────────────────────────── */}
       {courts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -129,7 +139,7 @@ export default async function DashboardPage({
 
       {/* ── Overview section ───────────────────────────────────────────────── */}
       {courts.length > 0 && (
-        <section>
+        <section id="schedule-grid">
           {isTeacher && (
             <div className="flex flex-col gap-3">
               <QuickReleaseBanner activeLesson={activeLesson ? {
@@ -148,6 +158,7 @@ export default async function DashboardPage({
             date={date}
             today={today}
             userRole={activeRole}
+            weatherBlockActive={!!activeWeatherBlock}
           />
         </section>
       )}

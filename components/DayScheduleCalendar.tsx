@@ -30,11 +30,12 @@ const HOUR_SLOTS = Array.from({ length: 15 }, (_, i) => {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DayScheduleCalendarProps {
-  courts:   ScheduleCourt[]    // { id, name, open_time, close_time }
-  bookings: ScheduleBooking[]  // { id, court_id, start_time, end_time } — stored in UTC (+00:00)
-  date:     string             // YYYY-MM-DD — currently selected day
-  today:    string             // YYYY-MM-DD — server-computed today
-  userRole: 'admin' | 'member' | 'teacher'
+  courts:              ScheduleCourt[]    // { id, name, open_time, close_time }
+  bookings:            ScheduleBooking[]  // { id, court_id, start_time, end_time } — stored in UTC (+00:00)
+  date:                string             // YYYY-MM-DD — currently selected day
+  today:               string             // YYYY-MM-DD — server-computed today
+  userRole:            'admin' | 'member' | 'teacher'
+  weatherBlockActive?: boolean            // when true, free slots are frozen (no booking allowed)
 }
 
 interface ModalState {
@@ -125,6 +126,7 @@ export default function DayScheduleCalendar({
   date,
   today,
   userRole,
+  weatherBlockActive = false,
 }: DayScheduleCalendarProps) {
   const now   = new Date()
   const [modal, setModal]               = useState<ModalState | null>(null)
@@ -367,6 +369,21 @@ export default function DayScheduleCalendar({
                     // ── Free slot ───────────────────────────────────────────
                     const slotId = `slot-${court.id}-${slot}`
                     const isFirstAvail = slotId === firstAvailableSlotId
+
+                    // Weather block: show frozen state instead of booking button
+                    if (weatherBlockActive) {
+                      return (
+                        <td
+                          key={court.id}
+                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                        >
+                          <div className="h-[64px] rounded-xl border-2 border-sky-200/60 bg-sky-50/50 flex flex-col items-center justify-center gap-1 select-none">
+                            <span className="text-base leading-none">⛈</span>
+                            <span className="text-[10px] font-semibold text-sky-600/80 leading-none">Inagibile</span>
+                          </div>
+                        </td>
+                      )
+                    }
 
                     return (
                       <td

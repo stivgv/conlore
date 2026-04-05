@@ -4,6 +4,8 @@ import AdminToggleButton from '@/components/ui/AdminToggleButton'
 import AdminCancelButton from '@/components/ui/AdminCancelButton'
 import AdminPaymentButton from '@/components/ui/AdminPaymentButton'
 import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
+import WeatherBlockPanel from '@/components/WeatherBlockPanel'
+import { getActiveWeatherBlock } from '@/app/admin/weather-actions'
 
 type CourtRow = {
   id: string
@@ -61,7 +63,9 @@ export default async function AdminPage() {
   // Auth + role check is already handled by AdminLayout — no need to repeat it here.
   const supabase = await createClient()
 
-  const [courtsResult, bookingsResult, usersResult] = await Promise.all([
+  const now = new Date()
+
+  const [courtsResult, bookingsResult, usersResult, activeBlock, affectedResult] = await Promise.all([
     supabase
       .from('courts')
       .select('id, name, surface_type, is_active')
@@ -77,11 +81,20 @@ export default async function AdminPage() {
       .select('id, email, name, role, created_at')
       .order('created_at', { ascending: false })
       .returns<UserRow[]>(),
+    getActiveWeatherBlock(),
+    // Count upcoming confirmed bookings today (to warn admin in the modal)
+    supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'confirmed')
+      .gte('start_time', now.toISOString())
+      .lt('start_time', `${now.toLocaleDateString('en-CA')}T23:59:59`),
   ])
 
-  const courts   = courtsResult.data  ?? []
-  const bookings = bookingsResult.data ?? []
-  const users    = usersResult.data    ?? []
+  const courts        = courtsResult.data  ?? []
+  const bookings      = bookingsResult.data ?? []
+  const users         = usersResult.data    ?? []
+  const affectedCount = affectedResult.count ?? 0
 
   // KPI calculations
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed')
@@ -275,12 +288,15 @@ export default async function AdminPage() {
 
       {/* ── Courts ── */}
       <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
             <Layers size={15} className="text-emerald-700" />
           </div>
           <h2 className="text-lg font-bold text-gray-900">Campi</h2>
           <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{courts.length}</span>
+          <div className="ml-auto">
+            <WeatherBlockPanel activeBlock={activeBlock} affectedCount={affectedCount} />
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
