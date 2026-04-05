@@ -17,6 +17,7 @@ export default async function AppNavbar() {
     .single<{ role: string; email: string; name: string }>()
 
   const isAdmin      = profile?.role === 'admin'
+  const isTeacher    = profile?.role === 'teacher'
   const email        = profile?.email ?? authUser.email ?? ''
   const displayName  = profile?.name || email
   const avatarLetter = displayName.charAt(0).toUpperCase()
@@ -48,6 +49,11 @@ export default async function AppNavbar() {
               ⚙ Admin
             </Link>
           )}
+          {isTeacher && (
+            <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+              🎾 Maestro
+            </span>
+          )}
 
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-rg-clay/15 border border-rg-clay/30 flex items-center justify-center flex-shrink-0">
@@ -55,7 +61,9 @@ export default async function AppNavbar() {
             </div>
             <div className="hidden md:flex flex-col leading-tight">
               <span className="text-xs font-medium text-rg-dark truncate max-w-[140px]">{displayName}</span>
-              <span className="text-[11px] text-rg-dark/45 capitalize">{profile?.role ?? 'member'}</span>
+              <span className="text-[11px] text-rg-dark/45 capitalize">
+                {profile?.role === 'teacher' ? 'Maestro' : profile?.role === 'admin' ? 'Admin' : 'Socio'}
+              </span>
             </div>
           </div>
 

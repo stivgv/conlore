@@ -2,12 +2,15 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { CalendarDays, Clock, MapPin } from 'lucide-react'
 import CancelBookingButton from '@/components/ui/CancelBookingButton'
+import TeacherCancelButton from '@/components/ui/TeacherCancelButton'
 
 type BookingWithCourt = {
   id: string
   start_time: string
   end_time: string
   status: string
+  booking_type: 'member' | 'teacher'
+  student_name: string | null
   courts: {
     name: string
     surface_type: string
@@ -31,7 +34,7 @@ export default async function MyBookingsPage() {
 
   const { data: bookings } = await supabase
     .from('bookings')
-    .select('id, start_time, end_time, status, courts(name, surface_type)')
+    .select('id, start_time, end_time, status, booking_type, student_name, courts(name, surface_type)')
     .eq('user_id', authUser.id)
     .neq('status', 'cancelled')
     .order('start_time', { ascending: true })
@@ -105,6 +108,9 @@ function BookingTicket({ booking, showCancel }: { booking: BookingWithCourt; sho
   const courtName = booking.courts?.name ?? 'Unknown Court'
   const surface   = booking.courts?.surface_type ?? ''
 
+  // Determina se è una prenotazione di tipo teacher (lezione)
+  const isTeacherBooking = booking.booking_type === 'teacher'
+
   const stripeColor =
     booking.status === 'confirmed' ? 'bg-rg-clay' :
     booking.status === 'cancelled' ? 'bg-rg-dark/20' :
@@ -115,7 +121,9 @@ function BookingTicket({ booking, showCancel }: { booking: BookingWithCourt; sho
     booking.status === 'cancelled' ? 'bg-rg-dark/6 text-rg-dark/40 border border-rg-dark/10' :
     'bg-rg-olive/15 text-rg-olive border border-rg-olive/30'
 
+  // Le lezioni confermate mostrano il label "Lezione" invece di "Confermata"
   const badgeLabel =
+    (booking.status === 'confirmed' && isTeacherBooking) ? 'Lezione' :
     booking.status === 'confirmed' ? 'Confermata' :
     booking.status === 'cancelled' ? 'Annullata' :
     'In attesa'
@@ -129,6 +137,12 @@ function BookingTicket({ booking, showCancel }: { booking: BookingWithCourt; sho
         {/* Left: details */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <span className="font-bold text-rg-dark text-base truncate">{courtName}</span>
+          {/* Nome dello studente per prenotazioni teacher */}
+          {isTeacherBooking && booking.student_name && (
+            <span className="text-xs text-rg-dark/50 flex items-center gap-1">
+              👤 <span className="font-medium">{booking.student_name}</span>
+            </span>
+          )}
           <div className="flex flex-wrap items-center gap-3 text-sm text-rg-dark/50">
             <span className="flex items-center gap-1.5">
               <CalendarDays size={13} className="text-rg-dark/30" />
@@ -153,7 +167,9 @@ function BookingTicket({ booking, showCancel }: { booking: BookingWithCourt; sho
             {badgeLabel}
           </span>
           {showCancel && booking.status === 'confirmed' && (
-            <CancelBookingButton bookingId={booking.id} />
+            isTeacherBooking
+              ? <TeacherCancelButton bookingId={booking.id} />
+              : <CancelBookingButton bookingId={booking.id} />
           )}
         </div>
       </div>

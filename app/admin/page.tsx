@@ -3,6 +3,7 @@ import { ShieldCheck, Layers, CalendarDays, Users, Euro, Clock, AlertTriangle } 
 import AdminToggleButton from '@/components/ui/AdminToggleButton'
 import AdminCancelButton from '@/components/ui/AdminCancelButton'
 import AdminPaymentButton from '@/components/ui/AdminPaymentButton'
+import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
 
 type CourtRow = {
   id: string
@@ -26,6 +27,8 @@ type BookingRow = {
   status: string
   total_price: number | null
   payment_status: string | null
+  booking_type: 'member' | 'teacher' | null
+  student_name: string | null
   courts: { name: string } | null
   users:  { email: string; name: string } | null
 }
@@ -66,7 +69,7 @@ export default async function AdminPage() {
       .returns<CourtRow[]>(),
     supabase
       .from('bookings')
-      .select('id, start_time, end_time, status, total_price, payment_status, courts(name), users(email, name)')
+      .select('id, start_time, end_time, status, total_price, payment_status, booking_type, student_name, courts(name), users(email, name)')
       .order('start_time', { ascending: false })
       .returns<BookingRow[]>(),
     supabase
@@ -96,6 +99,9 @@ export default async function AdminPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-5 sm:px-8 py-10 space-y-10">
+
+      {/* Banner promemoria analogico — mostrato in cima alla dashboard admin */}
+      <AnalogReminderBanner />
 
       {/* Page header */}
       <div className="pb-8 border-b border-gray-200">
@@ -189,7 +195,7 @@ export default async function AdminPage() {
                     <tr key={booking.id} className={`border-b border-gray-100 last:border-b-0 ${i % 2 !== 0 ? 'bg-gray-50/40' : ''}`}>
 
                       {/* Utente */}
-                      <td className="px-4 py-3.5 max-w-[160px]">
+                      <td className="px-4 py-3.5 max-w-[180px]">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-rg-clay/10 flex items-center justify-center flex-shrink-0">
                             <span className="text-rg-clay text-[10px] font-bold">
@@ -197,10 +203,22 @@ export default async function AdminPage() {
                             </span>
                           </div>
                           <div className="min-w-0">
-                            {booking.users?.name && (
-                              <p className="text-xs font-semibold text-gray-800 truncate">{booking.users.name}</p>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {booking.users?.name && (
+                                <p className="text-xs font-semibold text-gray-800 truncate">{booking.users.name}</p>
+                              )}
+                              {/* Pillola "Lezione" per prenotazioni teacher */}
+                              {booking.booking_type === 'teacher' && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
+                                  Lezione
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-gray-400 truncate">{booking.users?.email ?? '—'}</p>
+                            {/* Nome studente per prenotazioni teacher */}
+                            {booking.booking_type === 'teacher' && booking.student_name && (
+                              <p className="text-[11px] text-indigo-500 truncate">👤 {booking.student_name}</p>
+                            )}
                           </div>
                         </div>
                       </td>
