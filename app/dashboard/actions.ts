@@ -143,7 +143,7 @@ export async function createTeacherBooking(
     .select('role')
     .eq('id', user.id)
     .single()
-  if (profile?.role !== 'teacher') {
+  if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
     return { status: 'error', message: 'Accesso non autorizzato.' }
   }
 
@@ -200,7 +200,7 @@ export async function teacherCancelBooking(bookingId: string): Promise<CancelBoo
     .select('role')
     .eq('id', user.id)
     .single()
-  if (profile?.role !== 'teacher') {
+  if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
     return { status: 'error', message: 'Accesso non autorizzato.' }
   }
 
