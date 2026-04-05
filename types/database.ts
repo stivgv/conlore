@@ -15,6 +15,8 @@ export interface Court {
   close_time: string;
 }
 
+export type PaymentStatus = 'pending' | 'paid' | 'no_show'
+
 export interface Booking {
   id: string;
   user_id: string;
@@ -22,4 +24,6 @@ export interface Booking {
   start_time: string;
   end_time: string;
   status: string;
+  total_price: number;
+  payment_status: PaymentStatus;
 }

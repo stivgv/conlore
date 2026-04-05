@@ -23,10 +23,10 @@ export default async function AppNavbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-rg-dark/10">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4 min-w-0">
 
         {/* Brand + nav */}
-        <div className="flex items-center gap-6 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-5 min-w-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-lg bg-rg-dark flex items-center justify-center shadow-sm group-hover:bg-rg-clay transition-colors">
               <span className="text-white text-sm select-none">🎾</span>
@@ -39,7 +39,7 @@ export default async function AppNavbar() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {isAdmin && (
             <Link
               href="/admin"

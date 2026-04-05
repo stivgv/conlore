@@ -33,14 +33,16 @@ export default async function MyBookingsPage() {
     .from('bookings')
     .select('id, start_time, end_time, status, courts(name, surface_type)')
     .eq('user_id', authUser.id)
+    .neq('status', 'cancelled')
     .order('start_time', { ascending: true })
     .returns<BookingWithCourt[]>()
 
-  const upcoming = bookings?.filter(b => new Date(b.end_time) >= new Date()) ?? []
-  const past     = bookings?.filter(b => new Date(b.end_time) <  new Date()) ?? []
+  const now      = new Date()
+  const upcoming = bookings?.filter(b => new Date(b.end_time) >= now) ?? []
+  const past     = bookings?.filter(b => new Date(b.end_time) <  now) ?? []
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-10">
+    <main className="max-w-3xl mx-auto px-5 sm:px-8 py-10">
 
       {/* Page header */}
       <div className="mb-10 pb-8 border-b border-rg-dark/10">

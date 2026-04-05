@@ -1,21 +1,38 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import type { Court, User } from '@/types/database'
 import CourtCard from '@/components/CourtCard'
-import GlobalScheduleGrid, { type ScheduleBooking } from '@/components/GlobalScheduleGrid'
+import GlobalScheduleGrid, { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
 
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d + days).toLocaleDateString('en-CA')
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>
+}) {
   const supabase = await createClient()
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) redirect('/login')
 
+  const sp    = await searchParams
   const today = new Date().toLocaleDateString('en-CA')
+  const date  = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? '') ? sp.date! : today
+
+  // 5 swipeable date chips (Oggi, Domani, +2, +3, +4)
+  const chipDates = Array.from({ length: 5 }, (_, i) => {
+    const value = offsetDate(today, i)
+    const label = i === 0 ? 'Oggi'
+      : i === 1 ? 'Domani'
+      : new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric' })
+          .format(new Date(`${value}T12:00:00`))
+    return { label, value }
+  })
 
   const [profileResult, courtsResult, bookingsResult] = await Promise.all([
     supabase
@@ -33,8 +50,8 @@ export default async function DashboardPage() {
       .from('bookings')
       .select('id, court_id, start_time, end_time')
       .eq('status', 'confirmed')
-      .gte('start_time', `${today}T00:00:00`)
-      .lt('start_time',  `${offsetDate(today, 1)}T00:00:00`)
+      .gte('start_time', `${date}T00:00:00`)
+      .lt('start_time',  `${offsetDate(date, 1)}T00:00:00`)
       .returns<ScheduleBooking[]>(),
   ])
 
@@ -48,9 +65,15 @@ export default async function DashboardPage() {
     weekday: 'long', day: 'numeric', month: 'long',
   }).format(new Date())
 
+  const gridDateLabel = new Intl.DateTimeFormat('it-IT', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }).format(new Date(`${date}T12:00:00`))
+
+  const isChipDate = chipDates.some(c => c.value === date)
+
   return (
     <main className="min-h-screen bg-white">
-    <div className="max-w-7xl mx-auto px-6 py-10">
+    <div className="max-w-7xl mx-auto px-5 sm:px-8 py-10">
 
       {/* Hero */}
       <div className="mb-12 pb-8 border-b border-rg-dark/10">
@@ -86,19 +109,51 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* ── Today's Overview ───────────────────────────────────────────────── */}
+      {/* ── Overview section ───────────────────────────────────────────────── */}
       {courts.length > 0 && (
         <section>
-          <div className="flex items-end justify-between mb-5">
+
+          {/* Header row */}
+          <div className="flex items-end justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold text-rg-dark tracking-tight">Panoramica: Tutti i Campi</h2>
-              <p className="text-sm text-rg-dark/45 mt-0.5 capitalize">{todayLabel}</p>
+              <p className="text-sm text-rg-dark/45 mt-0.5 capitalize">{gridDateLabel}</p>
             </div>
-            <span className="text-xs font-semibold text-rg-clay border border-rg-clay/30 bg-rg-clay/5 px-3 py-1.5 rounded-full">
-              Oggi
-            </span>
+            {date === today && (
+              <span className="text-xs font-semibold text-rg-clay border border-rg-clay/30 bg-rg-clay/5 px-3 py-1.5 rounded-full flex-shrink-0">
+                Oggi
+              </span>
+            )}
           </div>
-          <GlobalScheduleGrid courts={courts} bookings={bookings} date={today} />
+
+          {/* Swipeable date chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide">
+            {chipDates.map(chip => (
+              <Link
+                key={chip.value}
+                href={`/dashboard?date=${chip.value}`}
+                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
+                  date === chip.value
+                    ? 'bg-rg-clay border-rg-clay text-white shadow-sm'
+                    : 'bg-white border-rg-dark/12 text-rg-dark/55 hover:border-rg-clay/60 hover:text-rg-clay'
+                }`}
+              >
+                {chip.label}
+              </Link>
+            ))}
+            {!isChipDate && (
+              <span className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 bg-rg-clay border-rg-clay text-white shadow-sm whitespace-nowrap">
+                {new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' })
+                  .format(new Date(`${date}T12:00:00`))}
+              </span>
+            )}
+          </div>
+
+          {/* Horizontally scrollable grid (mobile safe) */}
+          <div className="w-full overflow-x-auto pb-4">
+            <GlobalScheduleGrid courts={courts as ScheduleCourt[]} bookings={bookings} date={date} />
+          </div>
+
         </section>
       )}
 

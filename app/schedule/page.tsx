@@ -52,7 +52,7 @@ export default async function SchedulePage({
 
   return (
     <main className="min-h-screen bg-white">
-    <div className="max-w-7xl mx-auto px-6 py-10">
+    <div className="max-w-7xl mx-auto px-5 sm:px-8 py-10">
 
       {/* Page header */}
       <div className="mb-8 pb-8 border-b border-rg-dark/10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">

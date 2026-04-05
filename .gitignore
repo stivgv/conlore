@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# claude local settings (personal overrides, not for team)
+.claude/settings.local.json
+
 # vercel
 .vercel
 

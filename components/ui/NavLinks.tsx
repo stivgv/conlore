@@ -14,21 +14,21 @@ export default function NavLinks() {
   const pathname = usePathname()
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-0.5">
       {links.map(({ href, label, Icon }) => {
         const isActive = pathname === href
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               isActive
                 ? 'bg-rg-clay/10 text-rg-clay font-semibold'
                 : 'text-rg-dark/50 hover:text-rg-dark hover:bg-rg-dark/5'
             }`}
           >
             <Icon size={15} strokeWidth={isActive ? 2.5 : 2} />
-            {label}
+            <span className="hidden sm:inline">{label}</span>
           </Link>
         )
       })}

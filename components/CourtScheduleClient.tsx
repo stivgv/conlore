@@ -31,6 +31,12 @@ interface CourtScheduleClientProps {
   chipDates: DateChip[]
 }
 
+/** Add one hour to a HH:MM string */
+function addHour(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  return `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export default function CourtScheduleClient({
   court,
   slots,
@@ -60,7 +66,7 @@ export default function CourtScheduleClient({
 
   return (
     <>
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 py-10">
 
         {/* Back link */}
         <Link
@@ -89,19 +95,20 @@ export default function CourtScheduleClient({
           </div>
         </div>
 
-        {/* ── Date Chips ─────────────────────────────────────────────────────── */}
+        {/* ── Date Chips — swipeable ──────────────────────────────────────────── */}
         <div className="mb-8">
           <p className="text-[10px] font-bold text-rg-dark/35 uppercase tracking-widest mb-3">
             Seleziona Data
           </p>
-          <div className="flex items-center gap-2 flex-wrap">
 
-            {/* Preset chips: Today, Tomorrow, +2, +3, +4 */}
+          {/* Scrollable chip row — hides scrollbar, native swipe on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+
             {chipDates.map(chip => (
               <Link
                 key={chip.value}
                 href={`/dashboard/court/${court.id}?date=${chip.value}`}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
+                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
                   date === chip.value
                     ? 'bg-rg-clay border-rg-clay text-white shadow-sm'
                     : 'bg-white border-rg-dark/12 text-rg-dark/55 hover:border-rg-clay/60 hover:text-rg-clay'
@@ -111,11 +118,11 @@ export default function CourtScheduleClient({
               </Link>
             ))}
 
-            {/* Pick Date chip — active when user chose a date outside the 5 presets */}
+            {/* Pick Date chip */}
             <button
               type="button"
               onClick={openDatePicker}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
+              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
                 !isChipDate
                   ? 'bg-rg-clay border-rg-clay text-white shadow-sm'
                   : 'bg-white border-rg-dark/12 text-rg-dark/55 hover:border-rg-clay/60 hover:text-rg-clay'
@@ -128,7 +135,7 @@ export default function CourtScheduleClient({
                 : 'Scegli Data'}
             </button>
 
-            {/* Visually hidden date input */}
+            {/* Hidden date input */}
             <input
               ref={dateInputRef}
               type="date"
@@ -145,16 +152,18 @@ export default function CourtScheduleClient({
         {/* Date label */}
         <p className="text-sm text-rg-dark/40 mb-6 capitalize">{displayDate}</p>
 
-        {/* ── 1-hour slot grid ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        {/* ── Time-block grid ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {slots.map(slot => {
+            const endTime = addHour(slot.time)
+
             if (slot.booked) {
               return (
                 <div
                   key={slot.time}
                   className="flex flex-col items-center justify-center rounded-xl border border-rg-dark/8 bg-rg-dark/[0.03] py-5 cursor-not-allowed select-none"
                 >
-                  <span className="text-base font-bold text-rg-dark/20">{slot.time}</span>
+                  <span className="text-sm font-bold text-rg-dark/20">{slot.time} – {endTime}</span>
                   <span className="text-[10px] text-rg-dark/20 mt-1 font-medium">Occupato</span>
                 </div>
               )
@@ -165,7 +174,7 @@ export default function CourtScheduleClient({
                   key={slot.time}
                   className="flex flex-col items-center justify-center rounded-xl border border-rg-dark/6 bg-rg-dark/[0.02] py-5 cursor-not-allowed select-none opacity-30"
                 >
-                  <span className="text-base font-bold text-rg-dark/40">{slot.time}</span>
+                  <span className="text-sm font-bold text-rg-dark/40">{slot.time} – {endTime}</span>
                   <span className="text-[10px] text-rg-dark/40 mt-1 font-medium">Passato</span>
                 </div>
               )
@@ -176,7 +185,7 @@ export default function CourtScheduleClient({
                 onClick={() => setSelectedSlot(slot.time)}
                 className="flex flex-col items-center justify-center rounded-xl border-2 border-rg-clay/40 bg-rg-clay/5 py-5 hover:bg-rg-clay hover:border-rg-clay group transition-all duration-150"
               >
-                <span className="text-base font-bold text-rg-dark group-hover:text-white">{slot.time}</span>
+                <span className="text-sm font-bold text-rg-dark group-hover:text-white">{slot.time} – {endTime}</span>
                 <span className="text-[10px] text-rg-clay group-hover:text-white/80 mt-1 font-semibold">Prenota</span>
               </button>
             )
@@ -185,7 +194,6 @@ export default function CourtScheduleClient({
 
       </div>
 
-      {/* Smart modal — untouched until Phase 3 */}
       {selectedSlot && (
         <SmartBookingModal
           courtId={court.id}

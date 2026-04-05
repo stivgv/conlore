@@ -36,6 +36,8 @@ interface GlobalScheduleGridProps {
 }
 
 export default function GlobalScheduleGrid({ courts, bookings, date }: GlobalScheduleGridProps) {
+  const now = new Date()
+
   if (courts.length === 0) {
     return (
       <div className="flex items-center justify-center py-10 text-sm text-rg-dark/40">
@@ -91,6 +93,18 @@ export default function GlobalScheduleGrid({ courts, bookings, date }: GlobalSch
                       </td>
                     )
                   }
+
+                  const isPast = slotStart < now
+                  if (isPast) {
+                    return (
+                      <td key={court.id} className="px-1 py-0.5 border-r border-rg-dark/6 last:border-r-0 opacity-30 bg-rg-dark/[0.02]">
+                        <span className="flex items-center justify-center rounded py-0.5 px-2 text-[10px] text-rg-dark/30 select-none">
+                          Passato
+                        </span>
+                      </td>
+                    )
+                  }
+
                   const booked = bookings.some(b => isSlotBooked(b, court.id, slotStart))
                   return (
                     <td key={court.id} className="px-1 py-0.5 border-r border-rg-dark/6 last:border-r-0">

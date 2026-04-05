@@ -8,6 +8,10 @@ export default function CancelBookingButton({ bookingId }: { bookingId: string }
   const [isPending, startTransition] = useTransition()
 
   const handleCancel = () => {
+    const confirmed = window.confirm(
+      'Sei sicuro di voler annullare questa prenotazione? Verifica di essere entro i limiti della politica di cancellazione.'
+    )
+    if (!confirmed) return
     startTransition(async () => {
       await memberCancelBooking(bookingId)
     })
