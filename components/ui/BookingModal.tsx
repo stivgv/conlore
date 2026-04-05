@@ -1,3 +1,4 @@
+// @deprecated - use SmartBookingModal instead
 'use client'
 
 import { useActionState, useEffect } from 'react'
