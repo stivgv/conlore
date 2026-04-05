@@ -10,6 +10,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Roland Garros palette */
+  --color-rg-clay:  #d54527;
+  --color-rg-dark:  #311815;
+  --color-rg-olive: #9a8730;
 }
 
 @media (prefers-color-scheme: dark) {
