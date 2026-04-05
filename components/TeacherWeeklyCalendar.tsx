@@ -274,7 +274,7 @@ export default function TeacherWeeklyCalendar({
                           >
                             {isStart ? (
                               <>
-                                <span className="text-[11px] font-bold leading-none truncate" style={{ color }}>
+                                <span className="text-[11px] font-bold leading-none truncate text-rg-dark">
                                   🎾 {booking.student_name ?? '—'}
                                 </span>
                                 <span className="text-[10px] leading-none" style={{ color: `${color}99` }}>
