@@ -45,19 +45,24 @@ export default function ProfileSimulator({ simulatingRole }: ProfileSimulatorPro
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  /** Imposta il cookie di simulazione per il ruolo scelto e aggiorna la pagina */
+  /** Imposta il cookie di simulazione per il ruolo scelto e naviga alla dashboard del ruolo */
   function simulate(role: SimulableRole) {
     const value = encodeURIComponent(JSON.stringify({ role }))
     document.cookie = `tc_simulate=${value}; path=/; max-age=86400; SameSite=Lax`
     setOpen(false)
-    router.refresh()
+    // Naviga alla dashboard specifica del ruolo simulato
+    if (role === 'teacher') {
+      router.push('/dashboard/teacher')
+    } else {
+      router.push('/dashboard')
+    }
   }
 
   /** Rimuove il cookie di simulazione e torna alla vista Admin */
   function exitSimulation() {
     document.cookie = 'tc_simulate=; path=/; max-age=0'
     setOpen(false)
-    router.refresh()
+    router.push('/admin')
   }
 
   const currentOption = ROLE_OPTIONS.find(o => o.role === simulatingRole)
