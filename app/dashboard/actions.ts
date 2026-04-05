@@ -10,19 +10,29 @@ export async function signOut() {
   redirect('/login')
 }
 
-export async function memberCancelBooking(bookingId: string) {
+export type CancelBookingState = { status: 'success' | 'error'; message: string }
+
+/**
+ * Cancels a booking owned by the currently authenticated member.
+ * Returns a predictable state object instead of void so the caller
+ * can surface feedback to the user.
+ */
+export async function memberCancelBooking(bookingId: string): Promise<CancelBookingState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return { status: 'error', message: 'Non autenticato.' }
 
   // RLS ensures only the owner can update, but we also scope by user_id explicitly
-  await supabase
+  const { error } = await supabase
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('id', bookingId)
     .eq('user_id', user.id)
 
+  if (error) return { status: 'error', message: 'Impossibile annullare la prenotazione. Riprova.' }
+
   revalidatePath('/dashboard/my-bookings')
+  return { status: 'success', message: 'Prenotazione annullata.' }
 }
 
 export type BookingState =
@@ -39,10 +49,11 @@ export async function createBooking(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { status: 'error', message: 'You must be logged in to book a court.' }
 
-  const courtId  = formData.get('courtId')  as string
-  const date     = formData.get('date')     as string
-  const startTime = formData.get('startTime') as string
-  const endTime   = formData.get('endTime')   as string
+  // Use optional chaining + nullish coalescing instead of unsafe `as string` cast
+  const courtId   = formData.get('courtId')?.toString()   ?? ''
+  const date      = formData.get('date')?.toString()      ?? ''
+  const startTime = formData.get('startTime')?.toString() ?? ''
+  const endTime   = formData.get('endTime')?.toString()   ?? ''
 
   if (!courtId || !date || !startTime || !endTime) {
     return { status: 'error', message: 'Please fill in all fields.' }
@@ -52,8 +63,9 @@ export async function createBooking(
     return { status: 'error', message: 'End time must be after start time.' }
   }
 
-  const start    = `${date}T${startTime}:00`
-  const end      = `${date}T${endTime}:00`
+  // Append UTC offset to avoid ambiguous local-time parsing
+  const start    = `${date}T${startTime}:00+00:00`
+  const end      = `${date}T${endTime}:00+00:00`
   const startMs  = new Date(start).getTime()
   const endMs    = new Date(end).getTime()
 
@@ -82,12 +94,16 @@ export async function createBooking(
     return { status: 'error', message: 'You already have a booking during this time slot.' }
   }
 
+  // Calculate price server-side: 20€/hour, rounded to nearest euro
+  const totalPrice = Math.round((durationMinutes / 60) * 20)
+
   const { error } = await supabase.from('bookings').insert({
-    user_id:    user.id,
-    court_id:   courtId,
-    start_time: start,
-    end_time:   end,
-    status:     'confirmed',
+    user_id:     user.id,
+    court_id:    courtId,
+    start_time:  start,
+    end_time:    end,
+    status:      'confirmed',
+    total_price: totalPrice,
   })
 
   if (error) {

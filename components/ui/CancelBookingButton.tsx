@@ -13,7 +13,10 @@ export default function CancelBookingButton({ bookingId }: { bookingId: string }
     )
     if (!confirmed) return
     startTransition(async () => {
-      await memberCancelBooking(bookingId)
+      const result = await memberCancelBooking(bookingId)
+      if (result.status === 'error') {
+        alert(result.message)
+      }
     })
   }
 

@@ -20,7 +20,14 @@ async function requireAdmin() {
   return supabase
 }
 
-export async function adminCancelBooking(bookingId: string) {
+export type AdminActionState = { status: 'success' | 'error'; message: string }
+
+/**
+ * Cancels any booking as an admin.
+ * Returns a predictable state object instead of throwing so the caller
+ * can surface feedback without an unhandled exception boundary.
+ */
+export async function adminCancelBooking(bookingId: string): Promise<AdminActionState> {
   const supabase = await requireAdmin()
 
   const { error } = await supabase
@@ -28,13 +35,22 @@ export async function adminCancelBooking(bookingId: string) {
     .update({ status: 'cancelled' })
     .eq('id', bookingId)
 
-  if (error) throw new Error(error.message)
+  if (error) return { status: 'error', message: 'Impossibile annullare la prenotazione. Riprova.' }
 
   revalidatePath('/admin')
   revalidatePath('/dashboard/my-bookings')
+  revalidatePath('/dashboard')
+  return { status: 'success', message: 'Prenotazione annullata.' }
 }
 
-export async function updatePaymentStatus(bookingId: string, status: 'pending' | 'paid' | 'no_show') {
+/**
+ * Updates the payment status of a booking (pending | paid | no_show).
+ * Returns a predictable state object instead of throwing.
+ */
+export async function updatePaymentStatus(
+  bookingId: string,
+  status: 'pending' | 'paid' | 'no_show'
+): Promise<AdminActionState> {
   const supabase = await requireAdmin()
 
   const { error } = await supabase
@@ -42,12 +58,18 @@ export async function updatePaymentStatus(bookingId: string, status: 'pending' |
     .update({ payment_status: status })
     .eq('id', bookingId)
 
-  if (error) throw new Error(error.message)
+  if (error) return { status: 'error', message: 'Impossibile aggiornare il pagamento. Riprova.' }
 
   revalidatePath('/admin')
+  revalidatePath('/dashboard')
+  return { status: 'success', message: 'Stato pagamento aggiornato.' }
 }
 
-export async function toggleCourtStatus(courtId: string, currentStatus: boolean) {
+/**
+ * Toggles the active/inactive state of a court.
+ * Returns a predictable state object instead of throwing.
+ */
+export async function toggleCourtStatus(courtId: string, currentStatus: boolean): Promise<AdminActionState> {
   const supabase = await requireAdmin()
 
   const { error } = await supabase
@@ -55,8 +77,9 @@ export async function toggleCourtStatus(courtId: string, currentStatus: boolean)
     .update({ is_active: !currentStatus })
     .eq('id', courtId)
 
-  if (error) throw new Error(error.message)
+  if (error) return { status: 'error', message: 'Impossibile aggiornare lo stato del campo. Riprova.' }
 
   revalidatePath('/admin')
   revalidatePath('/dashboard')
+  return { status: 'success', message: 'Stato del campo aggiornato.' }
 }

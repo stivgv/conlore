@@ -13,7 +13,12 @@ export default function AdminPaymentButton({ bookingId, paymentStatus }: Props) 
   const [isPending, startTransition] = useTransition()
 
   const mark = (status: 'paid' | 'no_show') =>
-    startTransition(() => updatePaymentStatus(bookingId, status))
+    startTransition(async () => {
+      const result = await updatePaymentStatus(bookingId, status)
+      if (result.status === 'error') {
+        alert(result.message)
+      }
+    })
 
   // Already resolved — show read-only badge
   if (paymentStatus === 'paid') {

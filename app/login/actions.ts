@@ -12,7 +12,8 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    // Use a generic message to prevent user enumeration via Supabase error details
+    redirect(`/login?error=${encodeURIComponent('Email o password non corretti')}`)
   }
 
   redirect('/dashboard')
@@ -27,7 +28,8 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    // Use a generic message to prevent user enumeration via Supabase error details
+    redirect(`/login?error=${encodeURIComponent('Registrazione non riuscita. Riprova.')}`)
   }
 
   redirect('/dashboard')

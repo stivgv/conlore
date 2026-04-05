@@ -9,7 +9,12 @@ export default function AdminToggleButton({ courtId, isActive }: { courtId: stri
 
   return (
     <button
-      onClick={() => startTransition(() => toggleCourtStatus(courtId, isActive))}
+      onClick={() => startTransition(async () => {
+        const result = await toggleCourtStatus(courtId, isActive)
+        if (result.status === 'error') {
+          alert(result.message)
+        }
+      })}
       disabled={isPending}
       className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
         isActive
