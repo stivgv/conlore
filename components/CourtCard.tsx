@@ -78,13 +78,20 @@ export default function CourtCard({ court }: { court: Court }) {
         </span>
       </div>
 
-      {/* ── Aperto indicator ────────────────────────────────── */}
+      {/* ── Aperto/Chiuso indicator (basato su court.is_active) ── */}
       <div className="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5 bg-black/30 backdrop-blur-sm border border-white/10 rounded-full px-2.5 py-1">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#d54527' }} />
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5"                           style={{ backgroundColor: '#d54527' }} />
+          {court.is_active && (
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#22c55e' }} />
+          )}
+          <span
+            className="relative inline-flex rounded-full h-1.5 w-1.5"
+            style={{ backgroundColor: court.is_active ? '#22c55e' : '#ef4444' }}
+          />
         </span>
-        <span className="text-white text-[11px] font-medium">Aperto</span>
+        <span className="text-white text-[11px] font-medium">
+          {court.is_active ? 'Aperto' : 'Chiuso'}
+        </span>
       </div>
 
       {/* ── Glassmorphism footer ─────────────────────────────── */}

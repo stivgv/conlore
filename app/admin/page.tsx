@@ -1,6 +1,3 @@
-'use server'
-
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ShieldCheck, Layers, CalendarDays, Users, Euro, Clock, AlertTriangle } from 'lucide-react'
 import AdminToggleButton from '@/components/ui/AdminToggleButton'
@@ -58,18 +55,8 @@ const bookingStatusLabel: Record<string, string> = {
 }
 
 export default async function AdminPage() {
+  // Auth + role check is already handled by AdminLayout — no need to repeat it here.
   const supabase = await createClient()
-
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single()
-
-  if (profile?.role !== 'admin') redirect('/dashboard')
 
   const [courtsResult, bookingsResult, usersResult] = await Promise.all([
     supabase

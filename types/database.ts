@@ -24,6 +24,8 @@ export interface Booking {
   start_time: string;
   end_time: string;
   status: string;
-  total_price: number;
-  payment_status: PaymentStatus;
+  /** Nullable: the price may not yet be calculated at insert time */
+  total_price: number | null;
+  /** Nullable: payment is set asynchronously after booking creation */
+  payment_status: PaymentStatus | null;
 }

@@ -48,8 +48,9 @@ export default function CourtScheduleClient({
   const router       = useRouter()
   const dateInputRef = useRef<HTMLInputElement>(null)
 
-  const openTime    = court.open_time.slice(0, 5)
-  const closeTime   = court.close_time.slice(0, 5)
+  // Use optional chaining to guard against nullable open_time / close_time from the DB
+  const openTime    = court.open_time?.slice(0, 5)  ?? '—'
+  const closeTime   = court.close_time?.slice(0, 5) ?? '—'
   const available   = slots.filter(s => !s.booked && !s.past).length
   const isChipDate  = chipDates.some(c => c.value === date)
 
@@ -60,8 +61,12 @@ export default function CourtScheduleClient({
   function openDatePicker() {
     const input = dateInputRef.current
     if (!input) return
-    if ('showPicker' in input) (input as HTMLInputElement & { showPicker(): void }).showPicker()
-    else input.click()
+    // Prefer the native showPicker API (modern browsers); fall back to .click()
+    if ('showPicker' in (input as HTMLInputElement)) {
+      (input as HTMLInputElement & { showPicker(): void }).showPicker()
+    } else {
+      (input as HTMLInputElement).click()
+    }
   }
 
   return (

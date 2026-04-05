@@ -73,7 +73,7 @@ export default function GlobalScheduleGrid({ courts, bookings, date }: GlobalSch
 
             return (
               <tr
-                key={slot}
+                key={`${date}-${slot}`}
                 className={`${bandEven ? 'bg-white' : 'bg-rg-dark/[0.03]'} ${isOnTheHour && rowIdx > 0 ? 'border-t border-rg-dark/10' : ''}`}
               >
                 {/* Time label */}

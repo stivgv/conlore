@@ -17,6 +17,8 @@ export default async function DashboardPage({
 }) {
   const supabase = await createClient()
 
+  // Auth check is already performed in the Dashboard layout — no need to repeat it here.
+  // We still need getUser to fetch the profile for role/name display.
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) redirect('/login')
 
