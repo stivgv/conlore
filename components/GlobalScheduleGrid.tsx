@@ -17,8 +17,8 @@ function isSlotBooked(booking: ScheduleBooking, courtId: string, slotStart: Date
   return bStart < slotEnd && bEnd > slotStart
 }
 
-/** A slot is applicable only if its minute matches the court's opening minute,
- *  and it falls within the court's open/close range. */
+/** A slot is applicable if its start time falls within the court's
+ *  open/close range: slotStart >= open_time AND slotStart < close_time. */
 function isSlotApplicable(court: ScheduleCourt, slot: string): boolean {
   const [slotH, slotM]   = slot.split(':').map(Number)
   const [openH, openM]   = court.open_time.split(':').map(Number)
@@ -26,7 +26,7 @@ function isSlotApplicable(court: ScheduleCourt, slot: string): boolean {
   const slotTotal  = slotH * 60 + slotM
   const openTotal  = openH * 60 + openM
   const closeTotal = closeH * 60 + closeM
-  return slotM === openM && slotTotal >= openTotal && slotTotal < closeTotal
+  return slotTotal >= openTotal && slotTotal < closeTotal
 }
 
 interface GlobalScheduleGridProps {
