@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
 import type { Court, User } from '@/types/database'
 import CourtCard from '@/components/CourtCard'
-import GlobalScheduleGrid, { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
+import DayScheduleCalendar from '@/components/DayScheduleCalendar'
+import { type ScheduleBooking, type ScheduleCourt } from '@/components/GlobalScheduleGrid'
 
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -25,16 +25,6 @@ export default async function DashboardPage({
   const sp    = await searchParams
   const today = new Date().toLocaleDateString('en-CA')
   const date  = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? '') ? sp.date! : today
-
-  // 5 swipeable date chips (Oggi, Domani, +2, +3, +4)
-  const chipDates = Array.from({ length: 5 }, (_, i) => {
-    const value = offsetDate(today, i)
-    const label = i === 0 ? 'Oggi'
-      : i === 1 ? 'Domani'
-      : new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric' })
-          .format(new Date(`${value}T12:00:00`))
-    return { label, value }
-  })
 
   const [profileResult, courtsResult, bookingsResult] = await Promise.all([
     supabase
@@ -66,12 +56,6 @@ export default async function DashboardPage({
   const todayLabel = new Intl.DateTimeFormat('it-IT', {
     weekday: 'long', day: 'numeric', month: 'long',
   }).format(new Date())
-
-  const gridDateLabel = new Intl.DateTimeFormat('it-IT', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  }).format(new Date(`${date}T12:00:00`))
-
-  const isChipDate = chipDates.some(c => c.value === date)
 
   return (
     <main className="min-h-screen bg-white">
@@ -114,48 +98,12 @@ export default async function DashboardPage({
       {/* ── Overview section ───────────────────────────────────────────────── */}
       {courts.length > 0 && (
         <section>
-
-          {/* Header row */}
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-rg-dark tracking-tight">Panoramica: Tutti i Campi</h2>
-              <p className="text-sm text-rg-dark/45 mt-0.5 capitalize">{gridDateLabel}</p>
-            </div>
-            {date === today && (
-              <span className="text-xs font-semibold text-rg-clay border border-rg-clay/30 bg-rg-clay/5 px-3 py-1.5 rounded-full flex-shrink-0">
-                Oggi
-              </span>
-            )}
-          </div>
-
-          {/* Swipeable date chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide">
-            {chipDates.map(chip => (
-              <Link
-                key={chip.value}
-                href={`/dashboard?date=${chip.value}`}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 whitespace-nowrap ${
-                  date === chip.value
-                    ? 'bg-rg-clay border-rg-clay text-white shadow-sm'
-                    : 'bg-white border-rg-dark/12 text-rg-dark/55 hover:border-rg-clay/60 hover:text-rg-clay'
-                }`}
-              >
-                {chip.label}
-              </Link>
-            ))}
-            {!isChipDate && (
-              <span className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 bg-rg-clay border-rg-clay text-white shadow-sm whitespace-nowrap">
-                {new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' })
-                  .format(new Date(`${date}T12:00:00`))}
-              </span>
-            )}
-          </div>
-
-          {/* Horizontally scrollable grid (mobile safe) */}
-          <div className="w-full overflow-x-auto pb-4">
-            <GlobalScheduleGrid courts={courts as ScheduleCourt[]} bookings={bookings} date={date} />
-          </div>
-
+          <DayScheduleCalendar
+            courts={courts as ScheduleCourt[]}
+            bookings={bookings}
+            date={date}
+            today={today}
+          />
         </section>
       )}
 
