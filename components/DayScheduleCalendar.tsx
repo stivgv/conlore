@@ -4,14 +4,17 @@
  * DayScheduleCalendar — Google Calendar-style day view for the tennis court schedule.
  *
  * Renders one row per hour (08:00–22:00) for every active court, with:
- *  - Navigation: prev/next day, "Oggi" shortcut, scroll-to-first-free button
+ *  - Navigation: prev/next day, date picker, "Oggi" shortcut, scroll-to-first-free button
+ *  - Quick-date shortcuts for fast navigation
  *  - Free slots: full-hour card with "+" to open SmartBookingModal (books 60 min)
  *  - Booked slots: clay event card (start) or continuation strip (subsequent hours)
  *  - Past / inapplicable slots shown with appropriate muted styling
  */
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { CalendarDays, UserRound } from 'lucide-react'
 import {
   type ScheduleCourt,
   type ScheduleBooking,
@@ -120,6 +123,21 @@ function isPastSlot(date: string, slot: string, now: Date): boolean {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+/** Generates an array of quick-shortcut days relative to today */
+function getShortcutDays(today: string): Array<{ date: string; label: string; sublabel: string }> {
+  const labels: Record<number, string> = { 0: 'Oggi', 1: 'Domani', 2: 'Dopo' }
+  return Array.from({ length: 7 }, (_, i) => {
+    const d  = offsetDate(today, i)
+    const dt = new Date(`${d}T12:00:00`)
+    const wd = dt.toLocaleDateString('it-IT', { weekday: 'short' })
+    return {
+      date:     d,
+      label:    labels[i] ?? (wd.charAt(0).toUpperCase() + wd.slice(1)),
+      sublabel: `${dt.getDate()}/${dt.getMonth() + 1}`,
+    }
+  })
+}
+
 export default function DayScheduleCalendar({
   courts,
   bookings,
@@ -128,12 +146,16 @@ export default function DayScheduleCalendar({
   userRole,
   weatherBlockActive = false,
 }: DayScheduleCalendarProps) {
-  const now   = new Date()
+  const now         = new Date()
+  const router      = useRouter()
+  const dateInputRef = useRef<HTMLInputElement>(null)
+
   const [modal, setModal]               = useState<ModalState | null>(null)
   const [teacherModal, setTeacherModal] = useState<ModalState | null>(null)
 
   const prevDay = offsetDate(date, -1)
   const nextDay = offsetDate(date, +1)
+  const shortcuts = getShortcutDays(today)
 
   const gridDateLabel = new Intl.DateTimeFormat('it-IT', {
     weekday: 'long',
@@ -161,10 +183,10 @@ export default function DayScheduleCalendar({
     })
   }
 
-  const tableMinWidth = `${72 + courts.length * 200}px`
+  const tableMinWidth = `${52 + courts.length * 140}px`
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 max-w-[70%] mx-auto px-2">
 
       {/* ── Section title ──────────────────────────────────────────────────── */}
       <div>
@@ -189,10 +211,25 @@ export default function DayScheduleCalendar({
           ←
         </Link>
 
-        {/* Date label */}
-        <span className="flex-1 text-center font-bold text-rg-dark text-base capitalize">
-          {gridDateLabel}
-        </span>
+        {/* Date label + calendar picker trigger */}
+        <button
+          type="button"
+          onClick={() => dateInputRef.current?.showPicker()}
+          className="flex-1 flex items-center justify-center gap-2 font-bold text-rg-dark text-base capitalize
+            hover:text-rg-clay transition-colors duration-150 group"
+        >
+          <span>{gridDateLabel}</span>
+          <CalendarDays size={15} className="text-rg-dark/30 group-hover:text-rg-clay transition-colors" />
+        </button>
+        {/* Hidden native date input */}
+        <input
+          ref={dateInputRef}
+          type="date"
+          value={date}
+          onChange={(e) => { if (e.target.value) router.push(`/dashboard?date=${e.target.value}`) }}
+          className="sr-only"
+          aria-hidden="true"
+        />
 
         {/* Next day */}
         <Link
@@ -231,6 +268,28 @@ export default function DayScheduleCalendar({
         )}
       </div>
 
+      {/* ── Quick-date shortcuts ────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mb-1">
+        {shortcuts.map(({ date: d, label, sublabel }) => {
+          const isActive = d === date
+          return (
+            <Link
+              key={d}
+              href={`/dashboard?date=${d}`}
+              className={[
+                'flex flex-col items-center px-3 py-2 rounded-xl text-center flex-shrink-0 transition-all duration-150 min-w-[52px]',
+                isActive
+                  ? 'bg-rg-clay text-white shadow-sm'
+                  : 'bg-rg-dark/5 text-rg-dark/60 hover:bg-rg-clay/10 hover:text-rg-clay',
+              ].join(' ')}
+            >
+              <span className={`text-[11px] font-bold leading-none ${isActive ? 'text-white' : ''}`}>{label}</span>
+              <span className={`text-[10px] mt-0.5 leading-none ${isActive ? 'text-white/75' : 'text-rg-dark/40'}`}>{sublabel}</span>
+            </Link>
+          )
+        })}
+      </div>
+
       {/* ── Schedule grid ──────────────────────────────────────────────────── */}
       <div className="rounded-2xl overflow-hidden border border-rg-dark/12 shadow-sm w-full overflow-x-auto pb-2">
         <table
@@ -241,13 +300,13 @@ export default function DayScheduleCalendar({
           {/* Header */}
           <thead>
             <tr style={{ background: '#311815' }}>
-              <th className="w-[72px] px-4 py-3 text-left text-[10px] font-bold text-white/40 uppercase tracking-widest border-r border-white/8">
+              <th className="w-[52px] px-3 py-3 text-left text-[10px] font-bold text-white/40 uppercase tracking-widest border-r border-white/8">
                 ORA
               </th>
               {courts.map(court => (
                 <th
                   key={court.id}
-                  className="px-4 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider border-r border-white/8 last:border-r-0"
+                  className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider border-r border-white/8 last:border-r-0"
                 >
                   {court.name}
                 </th>
@@ -266,8 +325,8 @@ export default function DayScheduleCalendar({
                   className={`border-t border-rg-dark/[0.06] ${bandEven ? 'bg-white' : 'bg-rg-dark/[0.015]'}`}
                 >
                   {/* Time label */}
-                  <td className="px-4 py-3 w-[72px] border-r border-rg-dark/8 align-top">
-                    <span className="text-sm font-bold text-rg-dark leading-none">{slot}</span>
+                  <td className="px-3 py-2 w-[52px] border-r border-rg-dark/8 align-top">
+                    <span className="text-xs font-bold text-rg-dark leading-none">{slot}</span>
                   </td>
 
                   {/* Court cells */}
@@ -277,9 +336,9 @@ export default function DayScheduleCalendar({
                       return (
                         <td
                           key={court.id}
-                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0 bg-rg-dark/[0.025]"
+                          className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0 bg-rg-dark/[0.025]"
                         >
-                          <div className="h-[64px] rounded-xl flex items-center justify-center">
+                          <div className="h-[48px] rounded-xl flex items-center justify-center">
                             <span className="text-xs text-rg-dark/20 select-none font-medium">—</span>
                           </div>
                         </td>
@@ -291,9 +350,9 @@ export default function DayScheduleCalendar({
                       return (
                         <td
                           key={court.id}
-                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                          className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                         >
-                          <div className="h-[64px] rounded-xl bg-rg-dark/[0.03] flex items-center justify-center">
+                          <div className="h-[48px] rounded-xl bg-rg-dark/[0.03] flex items-center justify-center">
                             <span className="text-xs text-rg-dark/25 font-medium select-none">Passato</span>
                           </div>
                         </td>
@@ -310,7 +369,7 @@ export default function DayScheduleCalendar({
                         return (
                           <td
                             key={court.id}
-                            className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                            className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                           >
                             <div
                               style={{
@@ -318,7 +377,7 @@ export default function DayScheduleCalendar({
                                 borderColor: `${color}60`,
                                 backgroundColor: `${color}22`,
                               }}
-                              className="h-[64px] rounded-xl border border-l-[4px] flex flex-col justify-center px-3 gap-1"
+                              className="h-[48px] rounded-xl border border-l-[4px] flex flex-col justify-center px-3 gap-1"
                             >
                               <span style={{ color }} className="text-xs font-bold leading-none truncate">
                                 🎾 {booking.teacher_name ?? 'Maestro'}
@@ -338,14 +397,14 @@ export default function DayScheduleCalendar({
                         return (
                           <td
                             key={court.id}
-                            className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                            className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                           >
-                            <div className="h-[64px] rounded-xl border border-rg-clay/60 bg-rg-clay/25 border-l-[4px] border-l-rg-clay flex flex-col justify-center px-3 gap-1">
-                              <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-rg-clay flex-shrink-0" />
-                                <span className="text-xs font-bold text-rg-clay leading-none">Occupato</span>
+                            <div className="h-[48px] rounded-xl border border-green-200 bg-yellow-50 border-l-[4px] border-l-green-600 flex flex-col justify-center px-3 gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <UserRound size={11} className="text-green-600 flex-shrink-0" />
+                                <span className="text-xs font-bold text-green-700 leading-none">Socio</span>
                               </div>
-                              <span className="text-[11px] text-rg-dark/65 pl-4 leading-none font-medium">
+                              <span className="text-[11px] text-green-500 pl-[18px] leading-none font-medium">
                                 {formatBookingTime(booking)}
                               </span>
                             </div>
@@ -357,10 +416,10 @@ export default function DayScheduleCalendar({
                       return (
                         <td
                           key={court.id}
-                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                          className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                         >
-                          <div className="h-[64px] rounded-xl bg-rg-clay/20 border border-rg-clay/50 border-l-[4px] border-l-rg-clay/80 flex items-center px-3">
-                            <span className="text-xs font-semibold text-rg-clay/80">Occupato</span>
+                          <div className="h-[48px] rounded-xl bg-yellow-50 border border-green-200 border-l-[4px] border-l-green-600 flex items-center px-3">
+                            <span className="text-xs font-semibold text-green-500">↑</span>
                           </div>
                         </td>
                       )
@@ -375,9 +434,9 @@ export default function DayScheduleCalendar({
                       return (
                         <td
                           key={court.id}
-                          className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                          className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                         >
-                          <div className="h-[64px] rounded-xl border-2 border-sky-200/60 bg-sky-50/50 flex flex-col items-center justify-center gap-1 select-none">
+                          <div className="h-[48px] rounded-xl border-2 border-sky-200/60 bg-sky-50/50 flex flex-col items-center justify-center gap-1 select-none">
                             <span className="text-base leading-none">⛈</span>
                             <span className="text-[10px] font-semibold text-sky-600/80 leading-none">Inagibile</span>
                           </div>
@@ -388,7 +447,7 @@ export default function DayScheduleCalendar({
                     return (
                       <td
                         key={court.id}
-                        className="px-2 py-2 border-r border-rg-dark/6 last:border-r-0"
+                        className="px-1.5 py-1.5 border-r border-rg-dark/6 last:border-r-0"
                       >
                         <button
                           id={isFirstAvail && firstAvailableSlotId ? firstAvailableSlotId : undefined}
@@ -400,7 +459,7 @@ export default function DayScheduleCalendar({
                             }
                           }}
                           className={[
-                            'w-full h-[64px] rounded-xl border-2 flex flex-col items-center justify-center gap-1',
+                            'w-full h-[48px] rounded-xl border-2 flex flex-col items-center justify-center gap-1',
                             'transition-all duration-200 group',
                             isFirstAvail
                               ? 'border-rg-clay/50 bg-rg-clay/5 hover:bg-rg-clay/10 hover:border-rg-clay'

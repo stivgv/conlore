@@ -7,28 +7,15 @@ import { GraduationCap, CalendarDays, Clock, Users } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-/** Extends ScheduleBooking with user_id to distinguish "my lesson" from other bookings */
 type WeekBooking = ScheduleBooking & { user_id: string }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-/** Returns the Monday of the current week as YYYY-MM-DD. */
-function getCurrentMonday(): string {
-  const now = new Date()
-  const day = now.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  const diff = day === 0 ? -6 : 1 - day // shift to Monday
-  const monday = new Date(now)
-  monday.setDate(now.getDate() + diff)
-  return monday.toLocaleDateString('en-CA')
-}
-
-/** Returns a date string offset by `days` from a YYYY-MM-DD string. */
 function offsetDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d + days).toLocaleDateString('en-CA')
 }
 
-/** Returns true if the string is a valid YYYY-MM-DD date. */
 function isValidDate(str: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(Date.parse(str))
 }
@@ -38,7 +25,7 @@ function isValidDate(str: string): boolean {
 export default async function TeacherDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>
+  searchParams: Promise<{ date?: string }>
 }) {
   const supabase = await createClient()
 
@@ -58,31 +45,23 @@ export default async function TeacherDashboardPage({
   const simulatedRole = isAdmin ? await getSimulatedRole() : null
   const activeRole = simulatedRole ?? profile?.role
 
-  // Only teachers (or admins simulating teacher) can access this page
   if (activeRole !== 'teacher') redirect('/dashboard')
 
-  // ── Week navigation from searchParams ─────────────────────────────────
-  const sp = await searchParams
-  const rawWeek = sp.week ?? ''
+  // ── Date from searchParams ─────────────────────────────────────────────
+  const sp      = await searchParams
+  const rawDate = sp.date ?? ''
+  const today   = new Date().toLocaleDateString('en-CA')
+  const date: string = isValidDate(rawDate) ? rawDate : today
 
-  // Validate and default to current Monday if absent or invalid
-  const weekStart: string =
-    isValidDate(rawWeek) ? rawWeek : getCurrentMonday()
-
-  // weekEnd is the exclusive upper bound (next Monday)
-  const weekEnd = offsetDate(weekStart, 7)
-
-  // ── Date setup ─────────────────────────────────────────────────────────
-  const today = new Date().toLocaleDateString('en-CA')
-  const firstOfMonth = `${today.slice(0, 7)}-01`
+  const dayEnd         = offsetDate(date, 1)
+  const firstOfMonth   = `${today.slice(0, 7)}-01`
   const firstOfNextMonth = (() => {
     const [y, m] = today.split('-').map(Number)
-    // m (not m-1) advances to the next month
     return new Date(y, m, 1).toLocaleDateString('en-CA')
   })()
 
   // ── Parallel queries ───────────────────────────────────────────────────
-  const [courtsResult, weekBookingsResult, monthResult] = await Promise.all([
+  const [courtsResult, dayBookingsResult, monthResult] = await Promise.all([
     // 1. All active courts
     supabase
       .from('courts')
@@ -91,17 +70,16 @@ export default async function TeacherDashboardPage({
       .order('name')
       .returns<ScheduleCourt[]>(),
 
-    // 2. ALL confirmed bookings for the week across ALL courts
-    // (needed to show "Occupied" slots from other users)
+    // 2. All confirmed bookings for the selected day (all courts, all users)
     supabase
       .from('bookings')
       .select('id, court_id, start_time, end_time, booking_type, student_name, user_id, users(name, color_code)')
       .eq('status', 'confirmed')
-      .gte('start_time', `${weekStart}T00:00:00`)
-      .lt('start_time', `${weekEnd}T00:00:00`)
+      .gte('start_time', `${date}T00:00:00`)
+      .lt('start_time', `${dayEnd}T00:00:00`)
       .returns<any[]>(),
 
-    // 3. Monthly stats (only the teacher's own lessons)
+    // 3. Monthly stats (teacher's own lessons only)
     supabase
       .from('bookings')
       .select('id, start_time, student_name')
@@ -112,8 +90,8 @@ export default async function TeacherDashboardPage({
       .lt('start_time', `${firstOfNextMonth}T00:00:00`),
   ])
 
-  // ── Map raw bookings to WeekBooking[] ──────────────────────────────────
-  const weekBookings: WeekBooking[] = (weekBookingsResult.data ?? []).map((b: any) => ({
+  // ── Map raw bookings → WeekBooking[] ──────────────────────────────────
+  const dayBookings: WeekBooking[] = (dayBookingsResult.data ?? []).map((b: any) => ({
     id:            b.id,
     court_id:      b.court_id,
     start_time:    b.start_time,
@@ -125,30 +103,23 @@ export default async function TeacherDashboardPage({
     user_id:       b.user_id,
   }))
 
-  // ── Courts ─────────────────────────────────────────────────────────────
   const courts = courtsResult.data ?? []
 
-  // ── Computed monthly stats ─────────────────────────────────────────────
-  const monthLessons = monthResult.data ?? []
-  const monthCount = monthLessons.length
-  // Each lesson counts as 1 hour
-  const monthHours = monthCount
-  const uniqueStudents = [
+  // ── Monthly stats ──────────────────────────────────────────────────────
+  const monthLessons     = monthResult.data ?? []
+  const monthCount       = monthLessons.length
+  const monthHours       = monthCount
+  const uniqueStudents   = [
     ...new Set(monthLessons.map((b: any) => b.student_name).filter(Boolean)),
   ]
-
-  // Lessons the teacher has today (only if this week includes today)
-  const todayLessonsCount =
-    weekStart <= today && today < weekEnd
-      ? weekBookings.filter(
-          (b) => b.user_id === authUser.id && b.start_time.startsWith(today)
-        ).length
-      : 0
+  // "Oggi" count derived from monthly data (today is always in current month)
+  const todayLessonsCount = monthLessons.filter(
+    (b: any) => b.start_time.startsWith(today)
+  ).length
 
   // ── Display helpers ────────────────────────────────────────────────────
-  const displayName =
-    profile?.name || profile?.email || authUser.email || 'Maestro'
-  const teacherColor: string = (profile?.color_code as string | null) ?? '#6366f1'
+  const displayName  = profile?.name || profile?.email || authUser.email || 'Maestro'
+  const teacherColor = (profile?.color_code as string | null) ?? '#6366f1'
 
   // ── JSX ────────────────────────────────────────────────────────────────
   return (
@@ -166,73 +137,53 @@ export default async function TeacherDashboardPage({
         {/* ── 2. Stats bar ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10 pb-8 border-b border-rg-dark/10">
 
-          {/* Oggi */}
           <div className="rounded-2xl border border-rg-dark/10 shadow-sm bg-white px-5 py-4 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 mb-1">
               <GraduationCap size={14} className="text-rg-clay" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">
-                Oggi
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">Oggi</span>
             </div>
             <span className="text-3xl font-extrabold text-rg-dark">{todayLessonsCount}</span>
-            <span className="text-xs text-rg-dark/40">
-              {todayLessonsCount === 1 ? 'lezione' : 'lezioni'}
-            </span>
+            <span className="text-xs text-rg-dark/40">{todayLessonsCount === 1 ? 'lezione' : 'lezioni'}</span>
           </div>
 
-          {/* Mese */}
           <div className="rounded-2xl border border-rg-dark/10 shadow-sm bg-white px-5 py-4 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 mb-1">
               <CalendarDays size={14} className="text-indigo-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">
-                Mese
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">Mese</span>
             </div>
             <span className="text-3xl font-extrabold text-rg-dark">{monthCount}</span>
-            <span className="text-xs text-rg-dark/40">
-              {monthCount === 1 ? 'lezione' : 'lezioni'}
-            </span>
+            <span className="text-xs text-rg-dark/40">{monthCount === 1 ? 'lezione' : 'lezioni'}</span>
           </div>
 
-          {/* Ore */}
           <div className="rounded-2xl border border-rg-dark/10 shadow-sm bg-white px-5 py-4 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 mb-1">
               <Clock size={14} className="text-amber-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">
-                Ore
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">Ore</span>
             </div>
             <span className="text-3xl font-extrabold text-rg-dark">{monthHours}</span>
             <span className="text-xs text-rg-dark/40">ore insegnate</span>
           </div>
 
-          {/* Allievi */}
           <div className="rounded-2xl border border-rg-dark/10 shadow-sm bg-white px-5 py-4 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 mb-1">
               <Users size={14} className="text-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">
-                Allievi
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-rg-dark/40">Allievi</span>
             </div>
             <span className="text-3xl font-extrabold text-rg-dark">{uniqueStudents.length}</span>
-            <span className="text-xs text-rg-dark/40">
-              {uniqueStudents.length === 1 ? 'allievo' : 'allievi'}
-            </span>
+            <span className="text-xs text-rg-dark/40">{uniqueStudents.length === 1 ? 'allievo' : 'allievi'}</span>
           </div>
         </div>
 
-        {/* ── 3. Weekly calendar ───────────────────────────────────────── */}
-        <div className="w-[80%] mx-auto">
-          <TeacherWeeklyCalendar
-            courts={courts}
-            bookings={weekBookings}
-            weekStart={weekStart}
-            today={today}
-            teacherId={authUser.id}
-            teacherName={displayName}
-            teacherColor={teacherColor}
-          />
-        </div>
+        {/* ── 3. Day calendar ──────────────────────────────────────────── */}
+        <TeacherWeeklyCalendar
+          courts={courts}
+          bookings={dayBookings}
+          date={date}
+          today={today}
+          teacherId={authUser.id}
+          teacherName={displayName}
+          teacherColor={teacherColor}
+        />
 
       </div>
     </main>

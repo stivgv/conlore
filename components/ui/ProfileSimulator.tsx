@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { Eye, ChevronDown, X } from 'lucide-react'
 
 type SimulableRole = 'member' | 'teacher'
@@ -33,7 +32,6 @@ const ROLE_OPTIONS: { role: SimulableRole; label: string; description: string; p
  */
 export default function ProfileSimulator({ simulatingRole }: ProfileSimulatorProps) {
   const [open, setOpen] = useState(false)
-  const router          = useRouter()
   const ref             = useRef<HTMLDivElement>(null)
 
   // Chiude il dropdown al click esterno
@@ -45,24 +43,21 @@ export default function ProfileSimulator({ simulatingRole }: ProfileSimulatorPro
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  /** Imposta il cookie di simulazione per il ruolo scelto e naviga alla dashboard del ruolo */
+  /** Imposta il cookie di simulazione per il ruolo scelto e forza un hard reload
+   *  alla dashboard del ruolo. Il hard reload è necessario per garantire che tutti
+   *  i Server Components (navbar inclusa) rileggano il cookie aggiornato. */
   function simulate(role: SimulableRole) {
     const value = encodeURIComponent(JSON.stringify({ role }))
     document.cookie = `tc_simulate=${value}; path=/; max-age=86400; SameSite=Lax`
     setOpen(false)
-    // Naviga alla dashboard specifica del ruolo simulato
-    if (role === 'teacher') {
-      router.push('/dashboard/teacher')
-    } else {
-      router.push('/dashboard')
-    }
+    window.location.href = role === 'teacher' ? '/dashboard/teacher' : '/dashboard'
   }
 
-  /** Rimuove il cookie di simulazione e torna alla vista Admin */
+  /** Rimuove il cookie di simulazione e torna alla vista Admin (hard reload) */
   function exitSimulation() {
     document.cookie = 'tc_simulate=; path=/; max-age=0'
     setOpen(false)
-    router.push('/admin')
+    window.location.href = '/admin'
   }
 
   const currentOption = ROLE_OPTIONS.find(o => o.role === simulatingRole)
