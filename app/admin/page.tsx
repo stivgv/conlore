@@ -6,6 +6,8 @@ import AdminPaymentButton from '@/components/ui/AdminPaymentButton'
 import AnalogReminderBanner from '@/components/ui/AnalogReminderBanner'
 import WeatherBlockPanel from '@/components/WeatherBlockPanel'
 import { getActiveWeatherBlock } from '@/app/admin/weather-actions'
+import AdminDayGrid, { type AdminGridBooking, type MemberOption, type TeacherOption } from '@/components/AdminDayGrid'
+import { type ScheduleCourt } from '@/components/GlobalScheduleGrid'
 
 type CourtRow = {
   id: string
@@ -59,16 +61,33 @@ const bookingStatusLabel: Record<string, string> = {
   cancelled: 'Annullata',
 }
 
-export default async function AdminPage() {
+function offsetDate(d: string, days: number): string {
+  const [y, m, day] = d.split('-').map(Number)
+  return new Date(y, m - 1, day + days).toLocaleDateString('en-CA')
+}
+
+function isValidDate(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s))
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>
+}) {
   // Auth + role check is already handled by AdminLayout — no need to repeat it here.
   const supabase = await createClient()
 
-  const now = new Date()
+  const now   = new Date()
+  const today = now.toLocaleDateString('en-CA')
+  const sp    = await searchParams
+  const date  = isValidDate(sp.date ?? '') ? sp.date! : today
+  const dayEnd = offsetDate(date, 1)
 
-  const [courtsResult, bookingsResult, usersResult, activeBlock, affectedResult] = await Promise.all([
+  const [courtsResult, bookingsResult, usersResult, activeBlock, affectedResult, dayBookingsResult] = await Promise.all([
     supabase
       .from('courts')
-      .select('id, name, surface_type, is_active')
+      .select('id, name, surface_type, is_active, open_time, close_time')
       .order('name')
       .returns<CourtRow[]>(),
     supabase
@@ -88,13 +107,51 @@ export default async function AdminPage() {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'confirmed')
       .gte('start_time', now.toISOString())
-      .lt('start_time', `${now.toLocaleDateString('en-CA')}T23:59:59`),
+      .lt('start_time', `${today}T23:59:59`),
+    // Day bookings for the admin grid (with user join)
+    supabase
+      .from('bookings')
+      .select('id, court_id, user_id, start_time, end_time, booking_type, student_name, status, payment_status, users(name, email, color_code)')
+      .eq('status', 'confirmed')
+      .gte('start_time', `${date}T00:00:00`)
+      .lt('start_time', `${dayEnd}T00:00:00`)
+      .returns<any[]>(),
   ])
 
   const courts        = courtsResult.data  ?? []
   const bookings      = bookingsResult.data ?? []
   const users         = usersResult.data    ?? []
   const affectedCount = affectedResult.count ?? 0
+
+  // Map day bookings for the admin grid
+  const gridBookings: AdminGridBooking[] = (dayBookingsResult.data ?? []).map((b: any) => ({
+    id:             b.id,
+    court_id:       b.court_id,
+    user_id:        b.user_id,
+    start_time:     b.start_time,
+    end_time:       b.end_time,
+    booking_type:   b.booking_type ?? 'member',
+    student_name:   b.student_name ?? null,
+    status:         b.status,
+    payment_status: b.payment_status ?? null,
+    user_name:      b.users?.name  ?? b.users?.email ?? '—',
+    user_email:     b.users?.email ?? '',
+    user_color:     b.users?.color_code ?? null,
+  }))
+
+  // Members and teachers for the add-booking popup
+  const members: MemberOption[] = users
+    .filter(u => u.role === 'member')
+    .map(u => ({ id: u.id, name: u.name, email: u.email }))
+
+  const teachers: TeacherOption[] = users
+    .filter(u => u.role === 'teacher')
+    .map(u => ({ id: u.id, name: u.name, color_code: null }))
+
+  // Active courts with open/close times for the grid
+  const activeCourts: ScheduleCourt[] = courts
+    .filter((c: any) => c.is_active)
+    .map((c: any) => ({ id: c.id, name: c.name, open_time: c.open_time ?? '08:00', close_time: c.close_time ?? '22:00' }))
 
   // KPI calculations
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed')
@@ -176,6 +233,24 @@ export default async function AdminPage() {
           </div>
 
         </div>
+      </section>
+
+      {/* ── Admin Day Grid ── */}
+      <section>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-8 h-8 rounded-lg bg-rg-clay/10 flex items-center justify-center">
+            <CalendarDays size={15} className="text-rg-clay" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">Griglia Campi</h2>
+        </div>
+        <AdminDayGrid
+          courts={activeCourts}
+          bookings={gridBookings}
+          date={date}
+          today={today}
+          members={members}
+          teachers={teachers}
+        />
       </section>
 
       {/* ── Secretary Master Table ── */}

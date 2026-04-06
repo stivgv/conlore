@@ -6,6 +6,8 @@ export interface User {
   created_at: string;
   /** Hex color code for teachers (e.g. '#3b82f6'). NULL for admin/member. */
   color_code: string | null;
+  /** Mobile phone number, collected at registration. */
+  phone: string | null;
 }
 
 export interface Court {
